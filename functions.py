@@ -257,21 +257,25 @@ def read_obs(variable, region, forecast_range, season, observations_path, start_
     # e.g. DJFM has 4 letters, DJF has 3 letters
     window = len(season)
 
+    # Using the season window, take the rolling mean of the anomaly field for the season
+    # e.g. for DJFM, take the rolling mean of the anomaly field for 4 months
+    # We want to use non-overlapping windows, so we use the min_periods argument
+    # to ensure that the rolling window is only calculated when there are 4 months
+    # in the window
+    obs_anomaly = obs_anomaly.rolling(time=window, min_periods=window)
+
     # Extract the forecast range start and end years
     forecast_range_start_year, forecast_range_end_year = map(int, forecast_range.split('-'))
     # Calculate the rolling window range for the years
     # e.g. for years 2-9 this would be 9-2+1 = 8
     rolling_window_range_year = forecast_range_end_year - forecast_range_start_year + 1
 
-    # Calculate the rolling window range for years and months
-    # e.g. for DJFM years 2-9 this would be 8*4 = 32 months, if the months /
-    # have been extracted correctly
-    rolling_window_range = rolling_window_range_year * window
-
     # Generate a rolling window of the specified length
     # TODO: Check that this is the correct way to calculate the seasonal anomaly - time dimension
     # BUG: Check that this works for years 2-2!!!
-    obs_anomaly = obs_anomaly.rolling_window('time', iris.analysis.MEAN, rolling_window_range)
+    # Take the observed seasonal anomaly for the specified forecast range in years
+    # e.g. for years 2-9, take the rolling mean of the anomaly field for 8 years
+    obs_anomaly = obs_anomaly.rolling(time=rolling_window_range_year, min_periods=rolling_window_range_year)
 
     # Return the anomaly field
     return obs_anomaly
