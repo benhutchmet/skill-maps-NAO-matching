@@ -230,10 +230,12 @@ def read_obs(variable, region, forecast_range, season, observations_path, start_
     # Extract the months corresponding to the season
     months = dic.season_month_map[season]
 
+
+
     # Set up the iris constraint for the start and end years
     # Create the date time objects
-    start_date = datetime.datetime(int(start_year), 1, 1)
-    end_date = datetime.datetime(int(end_year), 12, 31)
+    start_date = datetime.datetime(int(start_year), 12, 1)
+    end_date = datetime.datetime(int(end_year), 3, 31)
     iris_constraint = iris.Constraint(time=lambda cell: start_date <= cell.point <= end_date)
     # Apply the iris constraint to the cube
     obs = obs.extract(iris_constraint)
@@ -245,9 +247,6 @@ def read_obs(variable, region, forecast_range, season, observations_path, start_
 
     # # Add a month coordinate to the cube
     # coord_cat.add_month(obs, 'time')
-
-    # Set up the season coord for the cube
-    coord_cat.add_season(obs, 'time', seasons=(season))
 
     # Calculate the seasonal climatology
     # First collapse the time dimension by taking the mean
@@ -261,8 +260,23 @@ def read_obs(variable, region, forecast_range, season, observations_path, start_
     # e.g. DJFM has 4 letters, DJF has 3 letters
     window = len(season)
 
+
+    # If i have 216 time steps
+    # and I want to take the rolling mean of 4 time steps
+    # non-overlapping
+    # then I will have 216/4 = 54 time steps
+
+    # Test the seasons
+    cube = obs_anomaly
+    time_coord = cube.coord('time')
+    seasons = ['djfm', 'amjj', 'ason']
+
+    coord_cat.add_season(cube, 'time', name='season', seasons=seasons)
+    coord_cat.add_season_year(cube, 'time', name='season_year', seasons=seasons)
+    coord_cat.add_season_number(cube, 'time', name='season_number', seasons=seasons)
+
     # Take the mean of the season
-    obs_seasonal_mean = obs_anomaly.aggregated_by(['season'], iris.analysis.MEAN)
+    obs_seasonal_mean = obs_anomaly.rolling_window('time', iris.analysis.MEAN, window)
 
     # Extract the forecast range start and end years
     forecast_range_start_year, forecast_range_end_year = map(int, forecast_range.split('-'))
