@@ -247,7 +247,7 @@ def read_obs(variable, region, forecast_range, season, observations_path, start_
     # coord_cat.add_month(obs, 'time')
 
     # Calculate the monthly climatology
-    climatology = obs.aggregated_by(['time'], iris.analysis.MEAN)
+    climatology = obs.collapsed(['time'], iris.analysis.MEAN)
 
     # Calculate the anomaly field
     obs_anomaly = obs - climatology
