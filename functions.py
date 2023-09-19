@@ -231,7 +231,10 @@ def read_obs(variable, region, forecast_range, season, observations_path, start_
     months = dic.season_month_map[season]
 
     # Set up the iris constraint for the start and end years
-    iris_constraint = iris.Constraint(year=lambda cell: start_year <= cell <= end_year)
+    # Create the date time objects
+    start_date = datetime.datetime(int(start_year), 1, 1)
+    end_date = datetime.datetime(int(end_year), 12, 31)
+    iris_constraint = iris.Constraint(time=lambda cell: start_date <= cell.point <= end_date)
     # Apply the iris constraint to the cube
     obs = obs.extract(iris_constraint)
 
@@ -290,8 +293,13 @@ def main():
     parser.add_argument('observations_path', type=str, help='Path to the observations')
     parser.add_argument('level', type=str, help='Level name, if applicable')
 
+
     # Extract the arguments
     args = parser.parse_args()
+
+    # If level is not numeric, then set to None
+    if not args.level.isnumeric():
+        args.level = None
 
     # Test the processing of the observations
     obs_anomaly = read_obs(args.variable, args.region, args.forecast_range, 
