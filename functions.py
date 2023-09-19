@@ -85,6 +85,57 @@ def regrid_and_select_region(variable, region, observations_path, level=None):
 
     return regrid_obs_path
 
+# Define a function to load the obs data into Iris cubes
+def load_obs(variable, regrid_obs_path):
+    """
+    Loads the obs data into Iris cubes.
+    
+    Parameters
+    ----------
+    variable : str
+        Variable name.
+    regrid_obs_path : str
+        Path to the regridded observations.
+        
+    Returns
+    -------
+    obs : iris.cube.Cube
+        Observations.
+    """
+
+    # Verify that the regrid obs path exists
+    if not os.path.exists(regrid_obs_path):
+        print('The regrid obs path does not exist')
+        sys.exit()
+
+    if variable not in dic.var_name_map:
+        print('The variable is not in the dictionary')
+        sys.exit()
+
+    # Extract the variable name from the dictionary
+    obs_variable = dic.var_name_map[variable]
+
+    if obs_variable in dic.obs_ws_var_names:
+        print('The obs variable is a wind speed variable')
+        
+        # Load the regrid obs file into an Iris cube
+        obs = iris.load_cube(regrid_obs_path, obs_variable)
+    else:
+        # Load using xarray
+        obs = xr.open_mfdataset(regrid_obs_path, combine='by_coords', parallel=True)[obs_variable]
+
+        # Combine the two expver variables
+        obs = obs.sel(expver=1).combine_first(obs.sel(expver=5))
+
+        # Convert to an Iris cube
+        obs = obs.to_iris()
+
+        # if the type of obs is not a cube, then exit
+        if type(obs) != iris.cube.Cube:
+            print('The type of obs is not a cube')
+            sys.exit()
+
+    return obs
 
 
 # We want to write a function which reads and processes the observations
@@ -124,3 +175,19 @@ def read_obs(variable, region, forecast_range, season, observations_path, level=
     if not os.path.exists(observations_path):
         print('The observations path does not exist')
         sys.exit()
+
+    # Get the path to the regridded and selected region observations
+    regrid_obs_path = regrid_and_select_region(variable, region, observations_path, level=level)
+
+
+
+def main():
+    """
+    Main function. For testing purposes.
+    """
+
+    # Extract the command line arguments
+
+
+if __name__ == '__main__':
+    main()
