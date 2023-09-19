@@ -179,6 +179,57 @@ def read_obs(variable, region, forecast_range, season, observations_path, level=
     # Get the path to the regridded and selected region observations
     regrid_obs_path = regrid_and_select_region(variable, region, observations_path, level=level)
 
+    # Load the obs data into Iris cubes
+    obs = load_obs(variable, regrid_obs_path)
+
+    # If the level is not None, then extract the level
+    if level is not None:
+        obs = obs.extract(iris.Constraint(air_pressure=level))
+
+    # Select the season
+    if season not in dic.season_month_map:
+        raise ValueError('The season is not in the dictionary')
+        sys.exit()
+    
+    # Extract the months corresponding to the season
+    months = dic.season_month_map[season]
+
+    # Set up the iris constraint
+    iris_constraint = iris.Constraint(month=lambda cell: cell in months)
+    # Apply the iris constraint to the cube
+    obs = obs.extract(iris_constraint)
+
+    # Calculate the monthly climatology
+    climatology = obs.aggregated_by(['month'], iris.analysis.MEAN)
+
+    # Calculate the anomaly field
+    obs_anomaly = obs - climatology
+
+    # Calculate seasonal anomalies
+    # First establish the number of letters in the season
+    # e.g. DJFM has 4 letters, DJF has 3 letters
+    window = len(season)
+
+    # Extract the forecast range start and end years
+    forecast_range_start_year, forecast_range_end_year = map(int, forecast_range.split('-'))
+    # Calculate the rolling window range for the years
+    # e.g. for years 2-9 this would be 9-2+1 = 8
+    rolling_window_range_year = forecast_range_end_year - forecast_range_start_year + 1
+
+    # Calculate the rolling window range for years and months
+    # e.g. for DJFM years 2-9 this would be 8*4 = 32 months, if the months /
+    # have been extracted correctly
+    rolling_window_range = rolling_window_range_year * window
+
+    # Generate a rolling window of the specified length
+    # TODO: Check that this is the correct way to calculate the seasonal anomaly - time dimension
+    # BUG: Check that this works for years 2-2!!!
+    obs_anomaly = obs_anomaly.rolling_window('time', iris.analysis.MEAN, rolling_window_range)
+
+    # Return the anomaly field
+    return obs_anomaly
+
+
 
 
 def main():
