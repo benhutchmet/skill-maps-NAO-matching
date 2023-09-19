@@ -239,7 +239,7 @@ def read_obs(variable, region, forecast_range, season, observations_path, start_
     obs = obs.extract(iris_constraint)
 
     # Set up the iris constraint
-    iris_constraint = iris.Constraint(month=lambda cell: cell in months)
+    iris_constraint = iris.Constraint(time=lambda cell: cell.point.month in months)
     # Apply the iris constraint to the cube
     obs = obs.extract(iris_constraint)
 
