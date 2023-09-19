@@ -58,7 +58,7 @@ import iris.quickplot as qplt
 
 # Import CDO
 from cdo import *
-cdo = Cdo()
+# cdo = Cdo()
 
 
 # Import the dictionaries
@@ -295,7 +295,8 @@ def main():
 
     # Test the processing of the observations
     obs_anomaly = read_obs(args.variable, args.region, args.forecast_range, 
-                            args.season, args.observations_path, level=args.level)
+                            args.season, args.observations_path, args.start_year,
+                                args.end_year, level=args.level)
 
 
 if __name__ == '__main__':
