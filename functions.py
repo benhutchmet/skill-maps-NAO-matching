@@ -275,7 +275,7 @@ def read_obs(variable, region, forecast_range, season, observations_path, start_
     # BUG: Check that this works for years 2-2!!!
     # Take the observed seasonal anomaly for the specified forecast range in years
     # e.g. for years 2-9, take the rolling mean of the anomaly field for 8 years
-    obs_anomaly = obs_anomaly.rolling(time=rolling_window_range_year, min_periods=rolling_window_range_year)
+    obs_anomaly = obs_anomaly.rolling(time=rolling_window_range_year)
 
     # Return the anomaly field
     return obs_anomaly
