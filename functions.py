@@ -243,8 +243,11 @@ def read_obs(variable, region, forecast_range, season, observations_path, start_
     # Apply the iris constraint to the cube
     obs = obs.extract(iris_constraint)
 
+    # # Add a month coordinate to the cube
+    # coord_cat.add_month(obs, 'time')
+
     # Calculate the monthly climatology
-    climatology = obs.aggregated_by(['month'], iris.analysis.MEAN)
+    climatology = obs.aggregated_by(['time'], iris.analysis.MEAN)
 
     # Calculate the anomaly field
     obs_anomaly = obs - climatology
