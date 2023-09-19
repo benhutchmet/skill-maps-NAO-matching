@@ -1,6 +1,38 @@
 # Functions used for the lagging and variance adjustment and NAO matching techniques (Doug Smith's method)
 # With help from Hazel Thornton's code
 
+"""
+functions.py
+============
+
+Usage:
+    python functions.py <model> <variable> <region> <season> <forecast_range> 
+                        <start_year> <end_year> <observations_path> <level>
+
+    e.g. python functions.py HadGEM3-GC31-MM psl global DJFM 2-9 1960 2014 /home/users/benhutch/ERA5/*.nc None
+
+Arguments:
+    model : str
+        Model name.
+    variable : str
+        Variable name.
+    region : str
+        Region name.
+    season : str
+        Season name.
+    forecast_range : str
+        Forecast range.
+    start_year : str
+        Start year.
+    end_year : str
+        End year.
+    observations_path : str
+        Path to the observations.
+    level : str
+        Level name. The default is None.
+
+"""
+
 # Local imports
 import os
 import glob
@@ -238,6 +270,23 @@ def main():
     """
 
     # Extract the command line arguments
+    parser = argparse.ArgumentParser()
+    parser.add_argument('model', type=str, help='Model name')
+    parser.add_argument('variable', type=str, help='Variable name')
+    parser.add_argument('region', type=str, help='Region name')
+    parser.add_argument('season', type=str, help='Season name')
+    parser.add_argument('forecast_range', type=str, help='Forecast range')
+    parser.add_argument('start_year', type=str, help='Start year')
+    parser.add_argument('end_year', type=str, help='End year')
+    parser.add_argument('observations_path', type=str, help='Path to the observations')
+    parser.add_argument('level', type=str, help='Level name, if applicable')
+
+    # Extract the arguments
+    args = parser.parse_args()
+
+    # Test the processing of the observations
+    obs_anomaly = read_obs(args.variable, args.region, args.forecast_range, 
+                            args.season, args.observations_path, level=args.level)
 
 
 if __name__ == '__main__':
