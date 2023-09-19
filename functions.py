@@ -246,8 +246,12 @@ def read_obs(variable, region, forecast_range, season, observations_path, start_
     # # Add a month coordinate to the cube
     # coord_cat.add_month(obs, 'time')
 
-    # Calculate the monthly climatology
-    climatology = obs.collapsed(['time'], iris.analysis.MEAN)
+    # Set up the season coord for the cube
+    coord_cat.add_season(obs, 'time', seasons=(season))
+
+    # Calculate the seasonal climatology
+    # First collapse the time dimension by taking the mean
+    climatology = obs.collapsed('time', iris.analysis.MEAN)
 
     # Calculate the anomaly field
     obs_anomaly = obs - climatology
@@ -257,12 +261,8 @@ def read_obs(variable, region, forecast_range, season, observations_path, start_
     # e.g. DJFM has 4 letters, DJF has 3 letters
     window = len(season)
 
-    # Using the season window, take the rolling mean of the anomaly field for the season
-    # e.g. for DJFM, take the rolling mean of the anomaly field for 4 months
-    # We want to use non-overlapping windows, so we use the min_periods argument
-    # to ensure that the rolling window is only calculated when there are 4 months
-    # in the window
-    obs_anomaly = obs_anomaly.rolling(time=window, min_periods=window)
+    # Take the mean of the season
+    obs_seasonal_mean = obs_anomaly.aggregated_by(['season'], iris.analysis.MEAN)
 
     # Extract the forecast range start and end years
     forecast_range_start_year, forecast_range_end_year = map(int, forecast_range.split('-'))
