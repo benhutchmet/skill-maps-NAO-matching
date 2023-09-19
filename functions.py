@@ -172,7 +172,7 @@ def load_obs(variable, regrid_obs_path):
 
 # We want to write a function which reads and processes the observations
 # then returns the obs anomaly field
-def read_obs(variable, region, forecast_range, season, observations_path, level=None):
+def read_obs(variable, region, forecast_range, season, observations_path, start_year, end_year, level=None):
     """
     Processes the observations to have the same grid as the model data
     using CDO. Then selects the region and season. Then calculates the
@@ -193,6 +193,10 @@ def read_obs(variable, region, forecast_range, season, observations_path, level=
         Season name.
     observations_path : str
         Path to the observations.
+    start_year : str
+        Start year.
+    end_year : str
+        End year.
     level : str, optional
         Level name. The default is None.
 
@@ -225,6 +229,11 @@ def read_obs(variable, region, forecast_range, season, observations_path, level=
     
     # Extract the months corresponding to the season
     months = dic.season_month_map[season]
+
+    # Set up the iris constraint for the start and end years
+    iris_constraint = iris.Constraint(year=lambda cell: start_year <= cell <= end_year)
+    # Apply the iris constraint to the cube
+    obs = obs.extract(iris_constraint)
 
     # Set up the iris constraint
     iris_constraint = iris.Constraint(month=lambda cell: cell in months)
