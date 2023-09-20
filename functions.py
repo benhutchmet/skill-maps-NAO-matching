@@ -914,6 +914,38 @@ def calculate_nao_index_and_plot(obs_anomaly, model_anomaly, models, variable, s
         
     return obs_nao, model_nao
 
+# Write a function to rescale the NAO index
+# We will only consider the non-lagged ensemble index for now
+def rescale_nao(obs_nao, model_nao, season, forecast_range, output_dir, lagged = False):
+    """
+    Rescales the NAO index according to Doug Smith's (2020) method.
+    
+    Parameters
+    ----------
+    obs_nao : xarray.Dataset
+        Observations.
+    model_nao : dict
+        Dictionary of model data. Sorted by model.
+        Each model contains a list of ensemble members, which are xarray datasets.
+    season : str
+        Season name.
+    forecast_range : str
+        Forecast range.
+    output_dir : str
+        Path to the output directory.
+    lagged : bool, optional
+        Flag to indicate whether the NAO index is lagged or not. The default is False.
+
+    Returns
+    -------
+    rescaled_model_nao : dict
+        Dictionary of model data. Sorted by model. Contains the rescaled NAO index.
+    model_nao : dict
+        Dictionary of model data. Sorted by model. Contains the original NAO index.
+    """
+
+    
+
 
 # Define a function for plotting the NAO index
 def plot_nao_index(obs_nao, ensemble_mean_nao, variable, season, forecast_range, r, p, output_dir, 
