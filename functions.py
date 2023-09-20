@@ -899,7 +899,8 @@ def calculate_nao_index_and_plot(obs_anomaly, model_anomaly, models, variable, s
 
 
 # Define a function for plotting the NAO index
-def plot_nao_index(obs_nao, ensemble_mean_nao, variable, season, forecast_range, r, p, output_dir, experiment = "dcppA-hindcast", nao_type="default"):
+def plot_nao_index(obs_nao, ensemble_mean_nao, variable, season, forecast_range, r, p, output_dir, 
+                        ensemble_members_count, experiment = "dcppA-hindcast", nao_type="default"):
     """
     Plots the NAO index for both the observations and model data.
     
@@ -921,6 +922,8 @@ def plot_nao_index(obs_nao, ensemble_mean_nao, variable, season, forecast_range,
         p-values for the correlation coefficients between the observed and model data.
     output_dir : str
         Path to the output directory.
+    ensemble_members_count : dict
+        Number of ensemble members for each model.
     experiment : str, optional
         Experiment name. The default is "dcppA-hindcast".
     nao_type : str, optional
@@ -940,7 +943,7 @@ def plot_nao_index(obs_nao, ensemble_mean_nao, variable, season, forecast_range,
     fig = plt.figure(figsize=(8, 6))
 
     # Set up the title
-    title = f"{variable} {forecast_range} {season} {experiment} {nao_type} NAO index"
+    plot_name = f"{variable} {forecast_range} {season} {experiment} {nao_type} NAO index"
 
     # Process the obs and the model data
     # from Pa to hPa
@@ -960,6 +963,48 @@ def plot_nao_index(obs_nao, ensemble_mean_nao, variable, season, forecast_range,
 
     # Plot the ensemble mean
     plt.plot(model_years, ensemble_mean_nao, label="dcppA", color="red")
+
+    # Add a horizontal line at y=0
+    plt.axhline(y=0, color="black", linestyle="--", linewidth=1)
+    # Set the ylim
+    plt.ylim(-10, 10)
+    plt.ylabel("NAO index (hPa)")
+    plt.xlabel("year")
+
+    # Set up a textbox with the season name in the top left corner
+    plt.text(0.05, 0.95, season, transform=fig.transFigure, fontsize=10, verticalalignment='top', bbox=dict(facecolor='white', alpha=0.5))
+
+    # If the nao_type is not default
+    # then add a textbox with the nao_type in the top right corner
+    if nao_type != "default":
+        # nao type = summer nao
+        # add a textbox with the nao_type in the top right corner
+        plt.text(0.95, 0.95, nao_type, transform=fig.transFigure, fontsize=10, verticalalignment='top', horizontalalignment='right', bbox=dict(facecolor='white', alpha=0.5))
+
+    # Set up the p value text box
+    if p < 0.01:
+        p_text = "< 0.01"
+    elif p < 0.05:
+        p_text = "< 0.05"
+    else:
+        p_text = f"= {p:.2f}"
+
+    # Extract the ensemble members count
+    no_ensemble_members = sum(ensemble_members_count.values())
+
+    # Set up the title for the plot
+    plt.title(f"ACC = {r:.2f}, p {p_text}, n = {no_ensemble_members}, years_{forecast_range}, {season}, {experiment}", fontsize=10)
+
+    # Set up the figure name
+    fig_name = f"{variable}_{forecast_range}_{season}_{experiment}_{nao_type}_NAO_index_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
+
+    # Save the figure
+    plt.savefig(output_dir + "/" + fig_name, dpi=300, bbox_inches="tight")
+
+    # Show the figure
+    plt.show()
+
+
 
 
 # Define a new function to calculate the correlations between the observed and model data
