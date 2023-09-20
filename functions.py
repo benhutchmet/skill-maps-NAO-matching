@@ -277,7 +277,7 @@ def calculate_annual_mean_anomalies(obs_anomalies, season):
 
     # if the type of obs_anomalies is an iris cube, then convert to an xarray dataset
     if type(obs_anomalies) == iris.cube.Cube:
-        xr.DataArray.from_iris(obs_anomalies)
+        obs_anomalies = xr.DataArray.from_iris(obs_anomalies)
 
     try:
         # Shift the dataset if necessary
