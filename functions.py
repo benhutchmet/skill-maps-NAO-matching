@@ -679,30 +679,32 @@ def remove_years_with_nans(observed_data, model_data, models):
             # Will we loop over the years
             if not np.isnan(member.values).any():
                 print("No NaN values in the model data")
-            else:
-                print("NaN values in the model data")
-                print("Model:", model)
-                print("Member:", member)
-                print("Looping over the years")
-                # Loop over the years
-                for year in model_years:
-                    # Extract the data for the year
-                    data = member.sel(time=f"{year}")
+                # continue with the loop
+                continue
 
-                    if np.isnan(data.values).any():
-                        print("NaN values in the model data for this year")
+            print("NaN values in the model data")
+            print("Model:", model)
+            print("Member:", member)
+            print("Looping over the years")
+            # Loop over the years
+            for year in model_years:
+                # Extract the data for the year
+                data = member.sel(time=f"{year}")
+
+                if np.isnan(data.values).any():
+                    print("NaN values in the model data for this year")
+                    print("Model:", model)
+                    print("Year:", year)
+                    if np.isnan(data.values).all():
+                        print("All NaN values in the model data for this year")
                         print("Model:", model)
                         print("Year:", year)
-                        if np.isnan(data.values).all():
-                            print("All NaN values in the model data for this year")
-                            print("Model:", model)
-                            print("Year:", year)
-                            # De-Select the year from the observed data
-                            member = member.sel(time=member.time.dt.year != year)
+                        # De-Select the year from the observed data
+                        member = member.sel(time=member.time.dt.year != year)
 
-                            print(year, "all NaN values for this year")
-                    else:
-                        print(year, "no NaN values for this year")
+                        print(year, "all NaN values for this year")
+                else:
+                    print(year, "no NaN values for this year")
 
     # Now check that there are no NaN values in the observed data
     for year in observed_data.time.dt.year.values:
@@ -731,6 +733,9 @@ def remove_years_with_nans(observed_data, model_data, models):
     # Set up the years to be returned
     obs_years = observed_data.time.dt.year.values
 
+    # Initialize a dictionary to store the constrained data
+    constrained_data = {}
+
     # if obs years and model years are not the same
     if obs_years != model_years:
         print("obs years and model years are not the same")
@@ -755,8 +760,14 @@ def remove_years_with_nans(observed_data, model_data, models):
                 # Select only those years from the model data
                 member = member.sel(time=member.time.dt.year.isin(years_in_both))
 
+                # Add the member to the constrained data dictionary
+                if model not in constrained_data:
+                    constrained_data[model] = []
 
-    return observed_data, model_data
+                # Append the member to the constrained data dictionary
+                constrained_data[model].append(member)
+
+    return observed_data, constrained_data
 
 
 # Write a function which reads in a cube of anomaly fields for the model data
