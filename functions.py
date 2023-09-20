@@ -903,7 +903,7 @@ def calculate_nao_index_and_plot(obs_anomaly, model_anomaly, models, variable, s
     # If the plot_graphics flag is set to True
     if plot_graphics:
         # First calculate the ensemble mean NAO index
-        ensemble_mean_nao = calculate_ensemble_mean_nao_index(model_nao, models)
+        ensemble_mean_nao, _ = calculate_ensemble_mean_nao_index(model_nao, models)
 
         # Calculate the correlation coefficients between the observed and model data
         r, p, _, _, _, _ = calculate_nao_correlations(obs_nao, ensemble_mean_nao, variable)
@@ -916,7 +916,7 @@ def calculate_nao_index_and_plot(obs_anomaly, model_anomaly, models, variable, s
 
 # Write a function to rescale the NAO index
 # We will only consider the non-lagged ensemble index for now
-def rescale_nao(obs_nao, model_nao, season, forecast_range, output_dir, lagged = False):
+def rescale_nao(obs_nao, model_nao, models, season, forecast_range, output_dir, lagged = False):
     """
     Rescales the NAO index according to Doug Smith's (2020) method.
     
@@ -927,6 +927,8 @@ def rescale_nao(obs_nao, model_nao, season, forecast_range, output_dir, lagged =
     model_nao : dict
         Dictionary of model data. Sorted by model.
         Each model contains a list of ensemble members, which are xarray datasets.
+    models : list
+        List of models to be plotted. Different models for each variable.
     season : str
         Season name.
     forecast_range : str
@@ -943,6 +945,45 @@ def rescale_nao(obs_nao, model_nao, season, forecast_range, output_dir, lagged =
     model_nao : dict
         Dictionary of model data. Sorted by model. Contains the original NAO index.
     """
+
+    # First calculate the ensemble mean NAO index
+    ensemble_mean_nao, ensemble_members_nao = calculate_ensemble_mean_nao_index(model_nao, models)
+
+
+# Define a new function to rescalse the NAO index for each year
+def rescale_nao_by_year(year, obs_nao, ensemble_mean_nao, ensemble_members_nao, season, forecast_range, output_dir, lagged=False, omit_no_either_side=1):
+    """
+    Rescales the observed and model NAO indices for a given year and season, and saves the results to disk.
+
+    Parameters
+    ----------
+    year : int
+        The year for which to rescale the NAO indices.
+    obs_nao : pandas.DataFrame
+        A DataFrame containing the observed NAO index values, with a DatetimeIndex.
+    ensemble_mean_nao : pandas.DataFrame
+        A DataFrame containing the ensemble mean NAO index values, with a DatetimeIndex.
+    ensemble_members_nao : dict
+        A dictionary containing the NAO index values for each ensemble member, with a DatetimeIndex.
+    season : str
+        The season for which to rescale the NAO indices. Must be one of 'DJF', 'MAM', 'JJA', or 'SON'.
+    forecast_range : int
+        The number of months to forecast ahead.
+    output_dir : str
+        The directory where to save the rescaled NAO indices.
+    lagged : bool, optional
+        Whether to use lagged NAO indices in the rescaling. Default is False.
+
+    Returns
+    -------
+    None
+    """
+
+    # Print the year for which the NAO indices are being rescaled
+    print(f"Rescaling NAO indices for {year}")
+
+    # Perform the cross-validation
+
 
     
 
@@ -1188,7 +1229,7 @@ def calculate_ensemble_mean_nao_index(model_nao, models):
     # Convert the ensemble mean NAO index to an xarray DataArray
     ensemble_mean_nao = xr.DataArray(ensemble_mean_nao, coords=member.coords, dims=member.dims)
 
-    return ensemble_mean_nao    
+    return ensemble_mean_nao, ensemble_members_nao    
 
 
 
