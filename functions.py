@@ -259,6 +259,10 @@ def read_obs(variable, region, forecast_range, season, observations_path, start_
     # Select the forecast range
     obs_anomaly_annual_forecast_range = select_forecast_range(obs_anomaly_annual, forecast_range)
 
+    # If the type of obs_anomaly_annual_forecast_range is not a cube, then convert to a cube
+    if type(obs_anomaly_annual_forecast_range) != iris.cube.Cube:
+        obs_anomaly_annual_forecast_range = xr.DataArray.to_iris(obs_anomaly_annual_forecast_range)
+
     # Return the anomaly field
     return obs_anomaly_annual_forecast_range
 
