@@ -261,8 +261,8 @@ def read_obs(variable, region, forecast_range, season, observations_path, start_
     obs_anomaly_annual_forecast_range = select_forecast_range(obs_anomaly_annual, forecast_range)
 
     # If the type of obs_anomaly_annual_forecast_range is not a cube, then convert to a cube
-    if type(obs_anomaly_annual_forecast_range) != iris.cube.Cube:
-        obs_anomaly_annual_forecast_range = xr.DataArray.to_iris(obs_anomaly_annual_forecast_range)
+    # if type(obs_anomaly_annual_forecast_range) != iris.cube.Cube:
+    #     obs_anomaly_annual_forecast_range = xr.DataArray.to_iris(obs_anomaly_annual_forecast_range)
 
     # Return the anomaly field
     return obs_anomaly_annual_forecast_range
@@ -334,6 +334,190 @@ def select_forecast_range(obs_anomalies_annual, forecast_range):
     except Exception as e:
         #print("Error selecting forecast range:", e)
         sys.exit()
+
+# Load the data
+def load_data(base_directory, models, variable, region, forecast_range, season, level=None):
+    """Load the data from the base directory into a dictionary of datasets.
+    
+    This function takes a base directory and a list of models and loads
+    all of the individual ensemble members into a dictionary of datasets
+    grouped by models.
+    
+    Args:
+        base_directory: The base directory where the data is stored.
+        models: A list of models to load.
+        variable: The variable to load, extracted from the command line.
+        region: The region to load, extracted from the command line.
+        forecast_range: The forecast range to load, extracted from the command line.
+        season: The season to load, extracted from the command line.
+        Level: The level to load, extracted from the command line. Default is None.
+        
+    Returns:
+        A dictionary of datasets grouped by models.
+    """
+    
+    # Create an empty dictionary to store the datasets.
+    datasets_by_model = {}
+    
+    # Loop over the models.
+    for model in models:
+        
+        # Create an empty list to store the datasets for this model.
+        datasets_by_model[model] = []
+        
+        # If the level is not None, then we want to load the data for the specified level
+        if level is not None:
+            files_path = base_directory + "/" + variable + "/" + model + "/" + region + "/" + f"years_{forecast_range}" + "/" + season + "/" + f"plev_{level}" + "/" + "outputs" + "/" + "mergetime" + "/" + "*.nc"
+        else:
+            # create the path to the files for this model
+            files_path = base_directory + "/" + variable + "/" + model + "/" + region + "/" + f"years_{forecast_range}" + "/" + season + "/" + "outputs" + "/" + "mergetime" + "/" + "*.nc"
+
+        # #print the path to the files
+        #print("Searching for files in ", files_path)
+
+        # Create a list of the files for this model.
+        files = glob.glob(files_path)
+
+        # if the list of files is empty, #print a warning and
+        # exit the program
+        if len(files) == 0:
+            print("No files found for " + model)
+            sys.exit()
+        
+        # #print the files to the screen.
+        #print("Files for " + model + ":", files)
+
+        # Loop over the files.
+        for file in files:
+
+            # #print the file to the screen.
+            # print(file)
+
+            # Conditional statement to ensure that models are common to all variables
+            if model == "CMCC-CM2-SR5":
+                # Don't use the files containing r11 and above or r2?i?
+                if re.search(r"r1[1-9]", file) or re.search(r"r2.i.", file):
+                    print("Skipping file", file)
+                    continue
+            elif model == "EC-Earth3":
+                # Don't use the files containing r?i2 or r??i2
+                if re.search(r"r.i2", file) or re.search(r"r..i2", file):
+                    print("Skipping file", file)
+                    continue
+            elif model == "FGOALS-f3-L":
+                # Don't use files containing r1-6i? or r??i?
+                if any(re.search(fr"r{i}i.", file) for i in range(1, 7)) or re.search(r"r..i.", file):
+                    print("Skipping file", file)
+                    continue
+
+            # check that the file exists
+            # if it doesn't exist, #print a warning and
+            # exit the program
+            if not os.path.exists(file):
+                #print("File " + file + " does not exist")
+                sys.exit()
+
+            # Load the dataset.
+            dataset = xr.open_dataset(file, chunks = {"time":50, "lat":100, "lon":100})
+
+            # Append the dataset to the list of datasets for this model.
+            datasets_by_model[model].append(dataset)
+            
+    # Return the dictionary of datasets.
+    return datasets_by_model
+
+# Define a function to constrain the years to the years that are in all of the model members
+def constrain_years(model_data, models):
+    """
+    Constrains the years to the years that are in all of the models.
+
+    Parameters:
+    model_data (dict): The processed model data.
+    models (list): The list of models to be plotted.
+
+    Returns:
+    constrained_data (dict): The model data with years constrained to the years that are in all of the models.
+    """
+    
+    # If the type of model_data is cube, then convert to a 
+    
+    # Initialize a list to store the years for each model
+    years_list = []
+
+    # #print the models being proces
+    # #print("models:", models)
+    
+    # Loop over the models
+    for model in models:
+        # Extract the model data
+        model_data_combined = model_data[model]
+
+        # Loop over the ensemble members in the model data
+        for member in model_data_combined:
+            # Extract the years
+            years = member.time.dt.year.values
+
+            # # print the model name
+            # # #print("model name:", model)
+            # print("years len:", len(years), "for model:", model)
+
+            # if len years is less than 10
+            # print the model name, member name, and len years
+            if len(years) < 10:
+                print("model name:", model)
+                print("member name:", member)
+                print("years len:", len(years))
+
+            # Append the years to the list of years
+            years_list.append(years)
+
+    # # #print the years list for debugging
+    # print("years list:", years_list)
+
+    # Find the years that are in all of the models
+    common_years = list(set(years_list[0]).intersection(*years_list))
+
+
+    # # #print the common years for debugging
+    # print("Common years:", common_years)
+    # print("Common years type:", type(common_years))
+    # print("Common years shape:", np.shape(common_years))
+
+    # Initialize a dictionary to store the constrained data
+    constrained_data = {}
+
+    # Loop over the models
+    for model in models:
+        # Extract the model data
+        model_data_combined = model_data[model]
+
+        # Loop over the ensemble members in the model data
+        for member in model_data_combined:
+            # Extract the years
+            years = member.time.dt.year.values
+
+            # #print the years extracted from the model
+            # #print('model years', years)
+            # #print('model years shape', np.shape(years))
+            
+            # Find the years that are in both the model data and the common years
+            years_in_both = np.intersect1d(years, common_years)
+
+            # #print("years in both shape", np.shape(years_in_both))
+            # #print("years in both", years_in_both)
+            
+            # Select only those years from the model data
+            member = member.sel(time=member.time.dt.year.isin(years_in_both))
+
+            # Add the member to the constrained data dictionary
+            if model not in constrained_data:
+                constrained_data[model] = []
+            constrained_data[model].append(member)
+
+    # # #print the constrained data for debugging
+    # #print("Constrained data:", constrained_data)
+
+    return constrained_data
 
 
 # Write a function which reads in a cube of anomaly fields for the model data
