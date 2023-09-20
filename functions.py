@@ -335,6 +335,44 @@ def select_forecast_range(obs_anomalies_annual, forecast_range):
         sys.exit()
 
 
+# Write a function which reads in a cube of anomaly fields for the model data
+# /home/users/benhutch/skill-maps-processed-data/psl/HadGEM3-GC31-MM/global/years_2-9/DJFM/outputs/mergetime
+def load_model_cube(variable, region, season, forecast_range):
+    """
+    Loads the model cube of anomaly fields. 
+    For all models, but a specific variable,
+    region, season and forecast range.
+    
+    Parameters
+    ----------
+    variable : str
+        Variable name.
+    region : str
+        Region name.
+    season : str
+        Season name.
+    forecast_range : str
+        Forecast range.
+        
+        Returns
+        -------
+    anom_mm: iris.cube.Cube
+        Anomaly field. Multi-model ensemble.
+    """
+
+    # Form the path to the model cube
+    model_path = f"/home/users/benhutch/skill-maps-processed-data/{variable}/*/{region}/years_{forecast_range}/{season}/outputs/*.nc"
+
+    # If there are no files which match the model path, then exit
+    if len(glob.glob(model_path)) == 0:
+        print('There are no files which match the model path')
+        sys.exit()
+
+    # Load the model cube
+    anom_mm = iris.load_cube(model_path)
+
+    return anom_mm
+
 def main():
     """
     Main function. For testing purposes.
@@ -364,6 +402,9 @@ def main():
     obs_anomaly = read_obs(args.variable, args.region, args.forecast_range, 
                             args.season, args.observations_path, args.start_year,
                                 args.end_year, level=args.level)
+    
+    # Test the loading of the model cube
+    anom_mm = load_model_cube(args.variable, args.region, args.season, args.forecast_range)
 
 
 if __name__ == '__main__':
