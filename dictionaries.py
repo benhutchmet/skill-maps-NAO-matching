@@ -25,3 +25,5 @@ season_month_map = {
     "DJFM": [12, 1, 2, 3],
     "djfm": [12, 1, 2, 3]
 }
+
+obs_path = "/home/users/benhutch/ERA5/adaptor.mars.internal-1691509121.3261805-29348-4-3a487c76-fc7b-421f-b5be-7436e2eb78d7.nc"

@@ -51,6 +51,7 @@ import cartopy.crs as ccrs
 import iris
 import iris.coord_categorisation as coord_cat
 import iris.plot as iplt
+from iris.util import unify_time_units, equalise_attributes
 import scipy
 import pdb
 import datetime
@@ -370,6 +371,12 @@ def load_model_cube(variable, region, season, forecast_range):
 
     # Load the list of cubes into a single cube
     anom_cubes = iris.load(model_path)
+
+    # Unify the time units
+    unify_time_units(anom_cubes)
+
+    # Remove attributes from the cubes
+
 
     # Merge the cubes into a single cube
     anom_mm = anom_cubes.merge_cube()
