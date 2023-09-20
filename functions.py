@@ -376,7 +376,7 @@ def load_model_cube(variable, region, season, forecast_range):
     unify_time_units(anom_cubes)
 
     # Remove attributes from the cubes
-
+    removed_attributes = equalise_attributes(anom_cubes)
 
     # Merge the cubes into a single cube
     anom_mm = anom_cubes.merge_cube()
