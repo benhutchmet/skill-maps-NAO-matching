@@ -170,6 +170,120 @@ def load_obs(variable, regrid_obs_path):
 
     return obs
 
+def process_data(datasets_by_model, variable):
+    """Process the data.
+    
+    This function takes a dictionary of datasets grouped by models
+    and processes the data for each dataset.
+    
+    Args:
+        datasets_by_model: A dictionary of datasets grouped by models.
+        variable: The variable to load, extracted from the command line.
+        
+    Returns:
+        variable_data_by_model: the data extracted for the variable for each model.
+        model_time_by_model: the model time extracted from each model for each model.
+    """
+    
+    #print(f"Dataset type: {type(datasets_by_model)}")
+
+    def process_model_dataset(dataset, variable):
+        """Process a single dataset.
+        
+        This function takes a single dataset and processes the data.
+        
+        Args:
+            dataset: A single dataset.
+            variable: The variable to load, extracted from the command line.
+            
+        Returns:
+            variable_data: the extracted variable data for a single model.
+            model_time: the extracted time data for a single model.
+        """
+        
+        if variable == "psl":
+            # #print the variable data
+            # #print("Variable data: ", variable_data)
+            # # #print the variable data type
+            # #print("Variable data type: ", type(variable_data))
+
+            # # #print the len of the variable data dimensions
+            # #print("Variable data dimensions: ", len(variable_data.dims))
+            
+            # Convert from Pa to hPa.
+            # Using try and except to catch any errors.
+            try:
+                # Extract the variable.
+                variable_data = dataset["psl"]
+
+                # #print the values of the variable data
+                # #print("Variable data values: ", variable_data.values)
+
+            except:
+                #print("Error converting from Pa to hPa")
+                sys.exit()
+
+        elif variable == "tas":
+            # Extract the variable.
+            variable_data = dataset["tas"]
+        elif variable == "rsds":
+            # Extract the variable.
+            variable_data = dataset["rsds"]
+        elif variable == "sfcWind":
+            # Extract the variable.
+            variable_data = dataset["sfcWind"]
+        elif variable == "tos":
+            # Extract the variable
+            variable_data = dataset["tos"]
+        elif variable == "ua":
+            # Extract the variable
+            variable_data = dataset["ua"]
+        elif variable == "va":
+            # Extract the variable
+            variable_data = dataset["va"]
+        else:
+            #print("Variable " + variable + " not recognised")
+            sys.exit()
+
+        # If variable_data is empty, #print a warning and exit the program.
+        if variable_data is None:
+            #print("Variable " + variable + " not found in dataset")
+            sys.exit()
+
+        # Extract the time dimension.
+        model_time = dataset["time"].values
+        # Set the type for the time dimension.
+        model_time = model_time.astype("datetime64[Y]")
+
+        # If model_time is empty, #print a warning and exit the program.
+        if model_time is None:
+            #print("Time not found in dataset")
+            sys.exit()
+
+        return variable_data, model_time
+    
+    # Create empty dictionaries to store the processed data.
+    variable_data_by_model = {}
+    model_time_by_model = {}
+    for model, datasets in datasets_by_model.items():
+        try:
+            # Create empty lists to store the processed data.
+            variable_data_by_model[model] = []
+            model_time_by_model[model] = []
+            # Loop over the datasets for this model.
+            for dataset in datasets:
+                # Process the dataset.
+                variable_data, model_time = process_model_dataset(dataset, variable)
+                # Append the processed data to the lists.
+                variable_data_by_model[model].append(variable_data)
+                model_time_by_model[model].append(model_time)
+        except Exception as e:
+            #print(f"Error processing dataset for model {model}: {e}")
+            #print("Exiting the program")
+            sys.exit()
+
+    # Return the processed data.
+    return variable_data_by_model, model_time_by_model
 
 # We want to write a function which reads and processes the observations
 # then returns the obs anomaly field
@@ -518,6 +632,105 @@ def constrain_years(model_data, models):
     # #print("Constrained data:", constrained_data)
 
     return constrained_data
+
+# checking for Nans in observed data
+def remove_years_with_nans(observed_data, model_data, models, variable):
+    """
+    Removes years from the observed data that contain NaN values.
+
+    Args:
+        observed_data (xarray.Dataset): The observed data.
+        model_data (dict): The model data.
+        models (list): The list of models to be plotted.
+        variable (str): the variable name.
+
+    Returns:
+        xarray.Dataset: The observed data with years containing NaN values removed.
+    """
+
+    # Check that there are no NaN values in the model data
+    # Loop over the models
+    for model in models:
+        # Extract the model data
+        model_data_by_model = model_data[model]
+
+        # Loop over the ensemble members in the model data
+        for member in model_data_by_model:
+            # Extract the years
+            model_years = member.time.dt.year.values
+
+            # Loop over the years
+            for year in model_years:
+                # Extract the data for the year
+                data = member.sel(time=f"{year}")
+
+                if np.isnan(data.values).any():
+                    print("NaN values in the model data for this year")
+                    print("Model:", model)
+                    print("Year:", year)
+                    if np.isnan(data.values).all():
+                        print("All NaN values in the model data for this year")
+                        print("Model:", model)
+                        print("Year:", year)
+                        # De-Select the year from the observed data
+                        member = member.sel(time=member.time.dt.year != year)
+
+                        print(year, "all NaN values for this year")
+                else:
+                    print(year, "no NaN values for this year")
+
+    # Now check that there are no NaN values in the observed data
+    for year in observed_data.time.dt.year.values:
+        # Extract the data for the year
+        data = observed_data.sel(time=f"{year}")
+
+        # print("data type", (type(data)))
+        # print("data vaues", data)
+        # print("data shape", np.shape(data))
+
+        # If there are any NaN values in the data
+        if np.isnan(data.values).any():
+            # If there are only NaN values in the data
+            if np.isnan(data.values).all():
+                # Select the year from the observed data
+                observed_data = observed_data.sel(time=observed_data.time.dt.year != year)
+
+                print(year, "all NaN values for this year")
+        # if there are no NaN values in the data for a year
+        # then #print the year
+        # and "no nan for this year"
+        # and continue the script
+        else:
+            print(year, "no NaN values for this year")
+
+    # Set up the years to be returned
+    obs_years = observed_data.time.dt.year.values
+
+    # if obs years and model years are not the same
+    if obs_years != model_years:
+        print("obs years and model years are not the same")
+        print("Aligning the years")
+
+        # Find the years that are in both the model data and the common years
+        years_in_both = np.intersect1d(obs_years, model_years)
+
+        # Select only those years from the model data
+        observed_data = observed_data.sel(time=observed_data.time.dt.year.isin(years_in_both))
+
+        # for the model data
+        for model in models:
+            # Extract the model data
+            model_data_by_model = model_data[model]
+
+            # Loop over the ensemble members in the model data
+            for member in model_data_by_model:
+                # Extract the years
+                model_years = member.time.dt.year.values
+
+                # Select only those years from the model data
+                member = member.sel(time=member.time.dt.year.isin(years_in_both))
+
+    return observed_data, model_data
 
 
 # Write a function which reads in a cube of anomaly fields for the model data
