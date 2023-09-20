@@ -656,8 +656,24 @@ def remove_years_with_nans(observed_data, model_data, models, variable):
 
         # Loop over the ensemble members in the model data
         for member in model_data_by_model:
+            
+            # # Modify the time dimension
+            # if type is not already datetime64
+            # then convert the time type to datetime64
+            if type(member.time.values[0]) != np.datetime64:
+                member_time = member.time.astype('datetime64[ns]')
+
+                # # Modify the time coordinate using the assign_coords() method
+                member = member.assign_coords(time=member_time)
+            
+            
             # Extract the years
             model_years = member.time.dt.year.values
+
+            # If the years has duplicate values
+            if len(model_years) != len(set(model_years)):
+                # Raise a value error
+                raise ValueError("The models years has duplicate values for model " + model + "member " + member)
 
             # Loop over the years
             for year in model_years:
