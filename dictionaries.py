@@ -69,3 +69,6 @@ snao_north_grid = {
     'lat1': 60,
     'lat2': 70
 }
+
+# plots directory canari
+plots_dir_canari = "/gws/nopw/j04/canari/users/benhutch/plots"
