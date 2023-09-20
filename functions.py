@@ -53,6 +53,7 @@ import iris.coord_categorisation as coord_cat
 import iris.plot as iplt
 from iris.util import unify_time_units, equalise_attributes
 import scipy
+import scipy.stats as stats
 import pdb
 import datetime
 import iris.quickplot as qplt
@@ -892,8 +893,169 @@ def calculate_nao_index_and_plot(obs_anomaly, model_anomaly, models, variable, s
         # First calculate the ensemble mean NAO index
         ensemble_mean_nao = calculate_ensemble_mean_nao_index(model_nao, models)
 
+        # Calculate the correlation coefficients between the observed and model data
+        r, p, _, _, _, _ = calculate_nao_correlations(obs_nao, ensemble_mean_nao, variable)
 
 
+
+# Define a function for plotting the NAO index
+def plot_nao_index(obs_nao, ensemble_mean_nao, variable, season, forecast_range, r, p, output_dir, experiment = "dcppA-hindcast", nao_type="default"):
+    """
+    Plots the NAO index for both the observations and model data.
+    
+    Parameters
+    ----------
+    obs_nao : xarray.Dataset
+        Observations.
+    ensemble_mean_nao : xarray.Dataset
+        Ensemble mean of the model data.
+    variable : str
+        Variable name.
+    season : str
+        Season name.
+    forecast_range : str
+        Forecast range.
+    r : float
+        Correlation coefficients between the observed and model data.
+    p : float
+        p-values for the correlation coefficients between the observed and model data.
+    output_dir : str
+        Path to the output directory.
+    experiment : str, optional
+        Experiment name. The default is "dcppA-hindcast".
+    nao_type : str, optional
+        NAO type. The default is "default".    
+
+
+    Returns
+    -------
+    None.
+
+    """
+    
+    # Set the font size
+    plt.rcParams.update({'font.size': 12})
+
+    # Set up the figure
+    fig = plt.figure(figsize=(8, 6))
+
+    # Set up the title
+    title = f"{variable} {forecast_range} {season} {experiment} {nao_type} NAO index"
+
+    # Process the obs and the model data
+    # from Pa to hPa
+    obs_nao = obs_nao / 100
+    ensemble_mean_nao = ensemble_mean_nao / 100
+
+    # Extract the years
+    obs_years = obs_nao.time.dt.year.values
+    model_years = ensemble_mean_nao.time.dt.year.values
+
+    # If the obs years and model years are not the same
+    if obs_years != model_years:
+        raise ValueError("Observed years and model years must be the same.")
+
+    # Plot the obs and the model data
+    plt.plot(obs_years, obs_nao, label="ERA5", color="black")
+
+    # Plot the ensemble mean
+    plt.plot(model_years, ensemble_mean_nao, label="dcppA", color="red")
+
+
+# Define a new function to calculate the correlations between the observed and model data
+# for the NAO index time series
+def calculate_nao_correlations(obs_nao, model_nao, variable):
+    """
+    Calculates the correlation coefficients between the observed North Atlantic Oscillation (NAO) index and the NAO indices
+    of multiple climate models.
+
+    Args:
+        obs_nao (array-like): The observed NAO index values.
+        model_nao (dict): A dictionary containing the NAO index values for each climate model.
+        models (list): A list of strings representing the names of the climate models.
+
+    Returns:
+        A dictionary containing the correlation coefficients between the observed NAO index and the NAO indices of each
+        climate model.
+    """
+    
+    # First check the dimensions of the observed and model data
+    print("observed data shape", np.shape(obs_nao))
+    print("model data shape", np.shape(model_nao))
+
+    # Find the years that are in both the observed and model data
+    obs_years = obs_nao.time.dt.year.values
+    model_years = model_nao.time.dt.year.values
+
+    # print the years
+    print("observed years", obs_years)
+    print("model years", model_years)
+
+    # If obs years and model years are not the same
+    if obs_years != model_years:
+        print("obs years and model years are not the same")
+        print("Aligning the years")
+
+        # Find the years that are in both the observed and model data
+        years_in_both = np.intersect1d(obs_years, model_years)
+
+        # Select only the years that are in both the observed and model data
+        obs_nao = obs_nao.sel(time=obs_nao.time.dt.year.isin(years_in_both))
+        model_nao = model_nao.sel(time=model_nao.time.dt.year.isin(years_in_both))
+
+        # Remove years with NaNs
+        obs_nao, model_nao, obs_years, model_years = remove_years_with_nans(obs_nao, model_nao, variable)
+
+    # Convert both the observed and model data to numpy arrays
+    obs_nao_array = obs_nao.values
+    model_nao_array = model_nao.values
+
+    # Check that the observed data and ensemble mean have the same shape
+    if obs_nao_array.shape != model_nao_array.shape:
+        raise ValueError("Observed data and ensemble mean must have the same shape.")
+    
+    # Calculate the correlations between the observed and model data
+    # Using the new function calculate_correlations_1D
+    r, p = calculate_correlations_1D(obs_nao_array, model_nao_array)
+
+    # Return the correlation coefficients and p-values
+    return r, p, model_nao_array, obs_nao_array, model_years, obs_years
+
+# Define a new function to calculate the one dimensional correlations
+# between the observed and model data
+def calculate_correlations_1D(observed_data, model_data):
+    """
+    Calculates the correlations between the observed and model data.
+    
+    Parameters:
+    observed_data (numpy.ndarray): The processed observed data.
+    model_data (numpy.ndarray): The processed model data.
+    
+    Returns:
+    r (xarray.core.dataarray.DataArray): The spatial correlations between the observed and model data.
+    p (xarray.core.dataarray.DataArray): The p-values for the spatial correlations between the observed and model data.
+    """
+
+    # Initialize empty arrays for the spatial correlations and p-values
+    r = []
+    p = []
+
+    # Verify that the observed and model data have the same shape
+    if observed_data.shape != model_data.shape:
+        raise ValueError("Observed data and model data must have the same shape.")
+    
+    # Verify that they don't contain all NaN values
+    if np.isnan(observed_data).all() or np.isnan(model_data).all():
+        # #print a warning
+        print("Warning: All NaN values detected in the data.")
+        print("exiting the script")
+        sys.exit()
+
+    # Calculate the correlation coefficient and p-value
+    r, p = stats.pearsonr(observed_data, model_data)
+
+    # return the correlation coefficient and p-value
+    return r, p
 
 # Define a function to calculate the ensemble mean NAO index
 def calculate_ensemble_mean_nao_index(model_nao, models):
