@@ -57,6 +57,7 @@ import scipy.stats as stats
 import pdb
 import datetime
 import iris.quickplot as qplt
+from datetime import datetime
 
 # Import CDO
 from cdo import *
@@ -188,7 +189,7 @@ def process_data(datasets_by_model, variable):
     
     #print(f"Dataset type: {type(datasets_by_model)}")
 
-    def process_model_dataset(dataset, variable):
+    def process_model_dataset(dataset, variable, attributes):
         """Process a single dataset.
         
         This function takes a single dataset and processes the data.
@@ -261,6 +262,9 @@ def process_data(datasets_by_model, variable):
             #print("Time not found in dataset")
             sys.exit()
 
+        # Set up the attributes for the variable.
+        variable_data.attrs = attributes
+
         return variable_data, model_time
     
     # Create empty dictionaries to store the processed data.
@@ -273,8 +277,16 @@ def process_data(datasets_by_model, variable):
             model_time_by_model[model] = []
             # Loop over the datasets for this model.
             for dataset in datasets:
+                
+                # Extract the member name from the dataset.
+                member = dataset.attrs["variant_label"]
+                print("Processing dataset for model", model, "member", member)
+
+                # Extract the attributes from the dataset.
+                attributes = dataset.attrs
+
                 # Process the dataset.
-                variable_data, model_time = process_model_dataset(dataset, variable)
+                variable_data, model_time = process_model_dataset(dataset, variable, attributes)
                 # Append the processed data to the lists.
                 variable_data_by_model[model].append(variable_data)
                 model_time_by_model[model].append(model_time)
@@ -348,8 +360,8 @@ def read_obs(variable, region, forecast_range, season, observations_path, start_
 
     # Set up the iris constraint for the start and end years
     # Create the date time objects
-    start_date = datetime.datetime(int(start_year), 12, 1)
-    end_date = datetime.datetime(int(end_year), 3, 31)
+    start_date = datetime(int(start_year), 12, 1)
+    end_date = datetime(int(end_year), 3, 31)
     iris_constraint = iris.Constraint(time=lambda cell: start_date <= cell.point <= end_date)
     # Apply the iris constraint to the cube
     obs = obs.extract(iris_constraint)
@@ -945,7 +957,7 @@ def plot_nao_index(obs_nao, ensemble_mean_nao, variable, season, forecast_range,
     plt.rcParams.update({'font.size': 12})
 
     # Set up the figure
-    fig = plt.figure(figsize=(8, 6))
+    fig = plt.figure(figsize=(10, 6))
 
     # Set up the title
     plot_name = f"{variable} {forecast_range} {season} {experiment} {nao_type} NAO index"
@@ -960,7 +972,7 @@ def plot_nao_index(obs_nao, ensemble_mean_nao, variable, season, forecast_range,
     model_years = ensemble_mean_nao.time.dt.year.values
 
     # If the obs years and model years are not the same
-    if obs_years != model_years:
+    if len(obs_years) != len(model_years):
         raise ValueError("Observed years and model years must be the same.")
 
     # Plot the obs and the model data
@@ -1042,7 +1054,7 @@ def calculate_nao_correlations(obs_nao, model_nao, variable):
     print("model years", model_years)
 
     # If obs years and model years are not the same
-    if obs_years != model_years:
+    if len(obs_years) != len(model_years):
         print("obs years and model years are not the same")
         print("Aligning the years")
 
@@ -1173,7 +1185,7 @@ def calculate_model_nao_anoms(model_data, models, azores_grid, iceland_grid,
     """
 
     # Initialize a list for the ensemble members
-    ensemble_members_nao_anoms = []
+    ensemble_members_nao_anoms = {}
 
     # Initialize a dictionary to store the number of ensemble members
     ensemble_members_count = {}
@@ -1213,6 +1225,15 @@ def calculate_model_nao_anoms(model_data, models, azores_grid, iceland_grid,
                 print("Invalid NAO type")
                 sys.exit()
 
+            # Extract the attributes
+            member_id = member.attrs["variant_label"]
+
+            # Print the model and member id
+            print("calculated NAO for model", model, "member", member_id)
+
+            # Extract the attributes from the member
+            attributes = member.attrs
+
             # Extract the lat and lon values
             # from the gridbox dictionary
             # first for the southern box
@@ -1242,8 +1263,16 @@ def calculate_model_nao_anoms(model_data, models, azores_grid, iceland_grid,
             # Extract the years
             years = nao_index.time.dt.year.values
 
+            # Associate the attributes with the NAO index
+            nao_index.attrs = attributes
+
+            # If model is not in the ensemble_members_nao_anoms
+            # then add it to the ensemble_members_nao_anoms
+            if model not in ensemble_members_nao_anoms:
+                ensemble_members_nao_anoms[model] = []
+
             # Append the ensemble member to the list of ensemble members
-            ensemble_members_nao_anoms.append(nao_index)
+            ensemble_members_nao_anoms[model].append(nao_index)
 
             # Increment the count of ensemble members for the model
             ensemble_members_count[model] += 1
