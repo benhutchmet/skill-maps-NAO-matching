@@ -896,6 +896,11 @@ def calculate_nao_index_and_plot(obs_anomaly, model_anomaly, models, variable, s
         # Calculate the correlation coefficients between the observed and model data
         r, p, _, _, _, _ = calculate_nao_correlations(obs_nao, ensemble_mean_nao, variable)
 
+        # Plot the NAO index
+        plot_nao_index(obs_nao, ensemble_mean_nao, variable, season, forecast_range, r, p, output_dir,
+                            ensemble_members_count, nao_type=nao_type)
+        
+    return obs_nao, model_nao
 
 
 # Define a function for plotting the NAO index
