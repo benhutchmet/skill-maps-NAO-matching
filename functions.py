@@ -254,10 +254,13 @@ def read_obs(variable, region, forecast_range, season, observations_path, start_
     obs_anomaly = obs - climatology
 
     # Calculate the annual mean anomalies
-    obs_anomaly = calculate_annual_mean_anomalies(obs_anomaly, season)
+    obs_anomaly_annual = calculate_annual_mean_anomalies(obs_anomaly, season)
+
+    # Select the forecast range
+    obs_anomaly_annual_forecast_range = select_forecast_range(obs_anomaly_annual, forecast_range)
 
     # Return the anomaly field
-    return obs_anomaly
+    return obs_anomaly_annual_forecast_range
 
 
 def calculate_annual_mean_anomalies(obs_anomalies, season):
@@ -298,6 +301,34 @@ def calculate_annual_mean_anomalies(obs_anomalies, season):
         print("Error shifting and calculating annual mean anomalies for observations")
         sys.exit()
 
+def select_forecast_range(obs_anomalies_annual, forecast_range):
+    """
+    Selects the forecast range for a given observation dataset.
+
+    Parameters:
+    obs_anomalies_annual (xarray.Dataset): The observation dataset containing annual mean anomalies.
+    forecast_range (str): The forecast range to select.
+
+    Returns:
+    xarray.Dataset: The observation dataset containing annual mean anomalies for the selected forecast range.
+
+    Raises:
+    ValueError: If the input dataset is invalid.
+    """
+    try:
+        
+        forecast_range_start, forecast_range_end = map(int, forecast_range.split("-"))
+        #print("Forecast range:", forecast_range_start, "-", forecast_range_end)
+        
+        rolling_mean_range = forecast_range_end - forecast_range_start + 1
+        #print("Rolling mean range:", rolling_mean_range)
+        
+        obs_anomalies_annual_forecast_range = obs_anomalies_annual.rolling(time=rolling_mean_range, center = True).mean()
+        
+        return obs_anomalies_annual_forecast_range
+    except Exception as e:
+        #print("Error selecting forecast range:", e)
+        sys.exit()
 
 
 def main():
