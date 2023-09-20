@@ -230,8 +230,6 @@ def read_obs(variable, region, forecast_range, season, observations_path, start_
     # Extract the months corresponding to the season
     months = dic.season_month_map[season]
 
-
-
     # Set up the iris constraint for the start and end years
     # Create the date time objects
     start_date = datetime.datetime(int(start_year), 12, 1)
@@ -255,45 +253,50 @@ def read_obs(variable, region, forecast_range, season, observations_path, start_
     # Calculate the anomaly field
     obs_anomaly = obs - climatology
 
-    # Calculate seasonal anomalies
-    # First establish the number of letters in the season
-    # e.g. DJFM has 4 letters, DJF has 3 letters
-    window = len(season)
-
-
-    # If i have 216 time steps
-    # and I want to take the rolling mean of 4 time steps
-    # non-overlapping
-    # then I will have 216/4 = 54 time steps
-
-    # Test the seasons
-    cube = obs_anomaly
-    time_coord = cube.coord('time')
-    seasons = ['djfm', 'amjj', 'ason']
-
-    coord_cat.add_season(cube, 'time', name='season', seasons=seasons)
-    coord_cat.add_season_year(cube, 'time', name='season_year', seasons=seasons)
-    coord_cat.add_season_number(cube, 'time', name='season_number', seasons=seasons)
-
-    # Take the mean of the season
-    obs_seasonal_mean = obs_anomaly.rolling_window('time', iris.analysis.MEAN, window)
-
-    # Extract the forecast range start and end years
-    forecast_range_start_year, forecast_range_end_year = map(int, forecast_range.split('-'))
-    # Calculate the rolling window range for the years
-    # e.g. for years 2-9 this would be 9-2+1 = 8
-    rolling_window_range_year = forecast_range_end_year - forecast_range_start_year + 1
-
-    # Generate a rolling window of the specified length
-    # TODO: Check that this is the correct way to calculate the seasonal anomaly - time dimension
-    # BUG: Check that this works for years 2-2!!!
-    # Take the observed seasonal anomaly for the specified forecast range in years
-    # e.g. for years 2-9, take the rolling mean of the anomaly field for 8 years
-    obs_anomaly = obs_anomaly.rolling(time=rolling_window_range_year)
+    # Calculate the annual mean anomalies
+    obs_anomaly = calculate_annual_mean_anomalies(obs_anomaly, season)
 
     # Return the anomaly field
     return obs_anomaly
 
+
+def calculate_annual_mean_anomalies(obs_anomalies, season):
+    """
+    Calculates the annual mean anomalies for a given observation dataset and season.
+
+    Parameters:
+    obs_anomalies (xarray.Dataset): The observation dataset containing anomalies.
+    season (str): The season for which to calculate the annual mean anomalies.
+
+    Returns:
+    xarray.Dataset: The annual mean anomalies for the given observation dataset and season.
+
+    Raises:
+    ValueError: If the input dataset is invalid.
+    """
+
+    # if the type of obs_anomalies is an iris cube, then convert to an xarray dataset
+    if type(obs_anomalies) == iris.cube.Cube:
+        xr.DataArray.from_iris(obs_anomalies)
+
+    try:
+        # Shift the dataset if necessary
+        if season in ["DJFM", "NDJFM"]:
+            obs_anomalies_shifted = obs_anomalies.shift(time=-3)
+        elif season in ["DJF", "NDJF"]:
+            obs_anomalies_shifted = obs_anomalies.shift(time=-2)
+        elif season in ["NDJ", "ONDJ"]:
+            obs_anomalies_shifted = obs_anomalies.shift(time=-1)
+        else:
+            obs_anomalies_shifted = obs_anomalies
+
+        # Calculate the annual mean anomalies
+        obs_anomalies_annual = obs_anomalies_shifted.resample(time="Y").mean("time")
+
+        return obs_anomalies_annual
+    except:
+        print("Error shifting and calculating annual mean anomalies for observations")
+        sys.exit()
 
 
 
