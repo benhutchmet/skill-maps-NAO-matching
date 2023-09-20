@@ -361,15 +361,18 @@ def load_model_cube(variable, region, season, forecast_range):
     """
 
     # Form the path to the model cube
-    model_path = f"/home/users/benhutch/skill-maps-processed-data/{variable}/*/{region}/years_{forecast_range}/{season}/outputs/*.nc"
+    model_path = f"/home/users/benhutch/skill-maps-processed-data/{variable}/*/{region}/years_{forecast_range}/{season}/outputs/mergetime/*.nc"
 
     # If there are no files which match the model path, then exit
     if len(glob.glob(model_path)) == 0:
         print('There are no files which match the model path')
         sys.exit()
 
-    # Load the model cube
-    anom_mm = iris.load_cube(model_path)
+    # Load the list of cubes into a single cube
+    anom_cubes = iris.load(model_path)
+
+    # Merge the cubes into a single cube
+    anom_mm = anom_cubes.merge_cube()
 
     return anom_mm
 
