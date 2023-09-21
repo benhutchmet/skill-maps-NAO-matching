@@ -1042,13 +1042,94 @@ def rescale_nao_by_year(year, obs_nao, ensemble_mean_nao, ensemble_members_nao, 
         cross_validation_indices = np.arange(year_index - omit_no_either_side, year_index + omit_no_either_side + 1)
     
     # Log which years are being used for the cross-validation
-    print("Cross-validation indices:", cross_validation_indices)    
+    print("Cross-validation indices:", cross_validation_indices)
+
+    # Extract the ensemble members for the cross-validation
+    # i.e. don't use the years given by the cross_validation_indices
+    ensemble_members_nao_array_cross_val = np.delete(ensemble_members_nao, cross_validation_indices, axis=1)
+    # Take the mean over the ensemble members
+    # to get the ensemble mean nao for the cross-validation
+    ensemble_mean_nao_cross_val = ensemble_members_nao_array_cross_val.mean(axis=0)
+
+    # Remove the indicies from the obs_nao
+    obs_nao_cross_val = np.delete(obs_nao, cross_validation_indices, axis=0)
+
+    # Calculate the pearson correlation coefficient between the observed and model NAO indices
+    acc_score, p_value = stats.pearsonr(obs_nao_cross_val, ensemble_mean_nao_cross_val)
+
+    # Calculate the RPS score 
+    rps_score = calculate_rps(acc_score, ensemble_members_nao_array_cross_val, obs_nao_cross_val)  
+
+    # Compute the rescaled NAO index for the year
+    signal_adjusted_nao_index = ensemble_mean_nao_year * rps_score
+
+    return signal_adjusted_nao_index, ensemble_mean_nao_year
 
 
-        
-
-
+def calculate_rpc(acc_score, ensemble_members_array):
+    """
+    Calculates the RPC score. Ratio of predictable components.
     
+    Parameters
+    ----------
+    acc_score : float
+        The ACC score.
+    ensemble_members_array : numpy.ndarray
+        The ensemble members array.
+        
+    Returns
+    -------
+    rpc_score : float
+        The RPC score.
+    """
+
+    # Calculate the ensemble mean over all members
+    ensemble_mean = np.mean(ensemble_members_array, axis=0)
+
+    # Calculate the standard deviation of the predictable signal for the forecasts (σfsig)
+    sigma_fsig = np.std(ensemble_mean)
+
+    # Calculate the total standard deviation of the forecasts (σftot)
+    sigma_ftot = np.std(ensemble_members_array)
+
+    # Calculate the RPC score
+    rpc_score = acc_score / (sigma_fsig / sigma_ftot)
+
+    return rpc_score
+
+# Calculate the RPS score - ratio of predictable signals
+def calculate_rps(acc_score, ensemble_members_array, obs_nao):
+    """
+    Calculates the RPS score. Ratio of predictable signals.
+    
+    Parameters
+    ----------
+    acc_score : float
+        The ACC score.
+    ensemble_members_array : numpy.ndarray
+        The ensemble members array.
+    obs_nao : numpy.ndarray
+        The observed NAO index.
+        
+    Returns
+    -------
+    rps_score : float
+        The RPS score.
+    """
+
+    # Calculate the ratio of predictable components (for the model)
+    rpc = calculate_rpc(acc_score, ensemble_members_array)
+
+    # Calculate the total standard deviation of the observations (σotot)
+    obs_std = np.std(obs_nao)
+
+    # Calculate the total standard deviation of the forecasts (σftot)
+    model_std = np.std(ensemble_members_array)
+
+    # Calculate the RPS score
+    rps_score = rpc * (obs_std / model_std)
+
+    return rps_score    
 
 
 # Define a function for plotting the NAO index
