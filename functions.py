@@ -940,15 +940,46 @@ def rescale_nao(obs_nao, model_nao, models, season, forecast_range, output_dir, 
 
     Returns
     -------
-    rescaled_model_nao : dict
-        Dictionary of model data. Sorted by model. Contains the rescaled NAO index.
-    model_nao : dict
-        Dictionary of model data. Sorted by model. Contains the original NAO index.
+    rescaled_model_nao : numpy.ndarray
+        Array contains the rescaled NAO index.
+    ensemble_mean_nao : numpy.ndarray
+        Ensemble mean NAO index. Not rescaled
+    ensemble_members_nao : numpy.ndarray
+        Ensemble members NAO index. Not rescaled
     """
 
     # First calculate the ensemble mean NAO index
     ensemble_mean_nao, ensemble_members_nao = calculate_ensemble_mean_nao_index(model_nao, models)
 
+    # Extract the years from the ensemble members
+    ensemble_members_years = ensemble_members_nao[0, :, 0, 0]
+    # Extract the years from the obs
+    obs_years = obs_nao[:, 0, 0]
+
+    # If the two years arrays are not equal
+    if not np.array_equal(ensemble_members_years, obs_years):
+        # Print a warning and exit the program
+        print("The years for the ensemble members and the observations are not equal")
+        sys.exit()
+
+    # Create an empty list to store the rescaled NAO index
+    rescaled_model_nao = []
+
+    # Loop over the years and perform the rescaling (including cross-validation)
+    for year in ensemble_members_years:
+
+        # Compute the rescaled NAO index for this year
+        signal_adjusted_nao_index_year, _ = rescale_nao_by_year(year, obs_nao, ensemble_mean_nao, ensemble_members_nao, season,
+                                                            forecast_range, output_dir, lagged=False, omit_no_either_side=1)
+
+        # Append the rescaled NAO index to the list, along with the year
+        rescaled_model_nao.append([year, signal_adjusted_nao_index_year])
+
+    # Convert the list to a numpy array
+    rescaled_model_nao = np.array(rescaled_model_nao)
+
+    # Return the rescaled model NAO index
+    return rescaled_model_nao, ensemble_mean_nao, ensemble_members_nao
 
 # Define a new function to rescalse the NAO index for each year
 def rescale_nao_by_year(year, obs_nao, ensemble_mean_nao, ensemble_members_nao, season,
@@ -989,7 +1020,7 @@ def rescale_nao_by_year(year, obs_nao, ensemble_mean_nao, ensemble_members_nao, 
     ensemble_members_nao_years = ensemble_members_nao[0, :, 0, 0]
 
     # If the years are not the same
-    if obs_years != ensemble_mean_nao_years or obs_years != ensemble_members_nao_years or ensemble_mean_nao_years != ensemble_members_nao_years:
+    if len(obs_years) != len(ensemble_mean_nao_years) or len(obs_years) != len(ensemble_members_nao_years) or len(ensemble_mean_nao_years) != len(ensemble_members_nao_years):
         # Print a warning and exit the program
         print("The years for obs_nao, ensemble_mean_nao, and ensemble_members_nao are not the same")
         sys.exit()
