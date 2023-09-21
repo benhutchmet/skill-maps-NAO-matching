@@ -951,7 +951,8 @@ def rescale_nao(obs_nao, model_nao, models, season, forecast_range, output_dir, 
 
 
 # Define a new function to rescalse the NAO index for each year
-def rescale_nao_by_year(year, obs_nao, ensemble_mean_nao, ensemble_members_nao, season, forecast_range, output_dir, lagged=False, omit_no_either_side=1):
+def rescale_nao_by_year(year, obs_nao, ensemble_mean_nao, ensemble_members_nao, season,
+                            forecast_range, output_dir, lagged=False, omit_no_either_side=1):
     """
     Rescales the observed and model NAO indices for a given year and season, and saves the results to disk.
 
@@ -982,7 +983,69 @@ def rescale_nao_by_year(year, obs_nao, ensemble_mean_nao, ensemble_members_nao, 
     # Print the year for which the NAO indices are being rescaled
     print(f"Rescaling NAO indices for {year}")
 
-    # Perform the cross-validation
+    # Make sure that the years for obs_nao, ensemble_mean_nao, and ensemble_members_nao are the same
+    obs_years = obs_nao[:, 0, 0]
+    ensemble_mean_nao_years = ensemble_mean_nao[:, 0, 0]
+    ensemble_members_nao_years = ensemble_members_nao[0, :, 0, 0]
+
+    # If the years are not the same
+    if obs_years != ensemble_mean_nao_years or obs_years != ensemble_members_nao_years or ensemble_mean_nao_years != ensemble_members_nao_years:
+        # Print a warning and exit the program
+        print("The years for obs_nao, ensemble_mean_nao, and ensemble_members_nao are not the same")
+        sys.exit()
+
+    # Ensure that the type of ensemble_mean_nao and ensemble_members_nao is a an array
+    if type(ensemble_mean_nao) and type(ensemble_members_nao) != np.ndarray:
+        AssertionError("The type of ensemble_mean_nao and ensemble_members_nao must be a numpy array")
+        sys.exit()
+
+    # Extract the years from the ensemble members
+    ensemble_members_years = ensemble_members_nao[0, :, 0, 0]
+
+    # If the year is not in the ensemble members years
+    if year not in ensemble_members_years:
+        # Print a warning and exit the program
+        print(f"Year {year} is not in the ensemble members years")
+        sys.exit()
+
+    # Extract the index for the year
+    year_index = np.where(ensemble_members_years == year)[0]
+
+    # Extract the ensemble members for the year
+    ensemble_members_nao_year = ensemble_members_nao[:, year_index, :, :]
+
+    # Compute the ensemble mean NAO for this year
+    ensemble_mean_nao_year = ensemble_members_nao_year.mean(axis=0)
+
+    # Set up the indicies for the cross-validation
+    # In the case of the first year
+    if year == ensemble_members_years[0]:
+        print("Cross-validation case for the first year")
+        print("Removing the first year and:", omit_no_either_side, "years forward")
+        # Set up the indices to use for the cross-validation
+        # Remove the first year and omit_no_either_side years forward
+        cross_validation_indices = np.arange(0, omit_no_either_side + 1)
+    # In the case of the last year
+    elif year == ensemble_members_years[-1]:
+        print("Cross-validation case for the last year")
+        print("Removing the last year and:", omit_no_either_side, "years backward")
+        # Set up the indices to use for the cross-validation
+        # Remove the last year and omit_no_either_side years backward
+        cross_validation_indices = np.arange(-1, -omit_no_either_side - 1, -1)
+    # In the case of any other year
+    else:
+        # Omit the year and omit_no_either_side years forward and backward
+        print("Cross-validation case for any other year")
+        print("Removing the year and:", omit_no_either_side, "years forward and backward")
+        # Set up the indices to use for the cross-validation
+        # Use the year index and omit_no_either_side years forward and backward
+        cross_validation_indices = np.arange(year_index - omit_no_either_side, year_index + omit_no_either_side + 1)
+    
+    # Log which years are being used for the cross-validation
+    print("Cross-validation indices:", cross_validation_indices)    
+
+
+        
 
 
     
