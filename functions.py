@@ -952,12 +952,12 @@ def rescale_nao(obs_nao, model_nao, models, season, forecast_range, output_dir, 
     ensemble_mean_nao, ensemble_members_nao = calculate_ensemble_mean_nao_index(model_nao, models)
 
     # Extract the years from the ensemble members
-    ensemble_members_years = ensemble_members_nao[0, :, 0, 0]
+    ensemble_mean_nao_years = ensemble_mean_nao.time.dt.year.values
     # Extract the years from the obs
-    obs_years = obs_nao[:, 0, 0]
+    obs_years = obs_nao.time.dt.year.values
 
     # If the two years arrays are not equal
-    if not np.array_equal(ensemble_members_years, obs_years):
+    if not np.array_equal(ensemble_mean_nao_years, obs_years):
         # Print a warning and exit the program
         print("The years for the ensemble members and the observations are not equal")
         sys.exit()
@@ -966,7 +966,7 @@ def rescale_nao(obs_nao, model_nao, models, season, forecast_range, output_dir, 
     rescaled_model_nao = []
 
     # Loop over the years and perform the rescaling (including cross-validation)
-    for year in ensemble_members_years:
+    for year in ensemble_mean_nao_years:
 
         # Compute the rescaled NAO index for this year
         signal_adjusted_nao_index_year, _ = rescale_nao_by_year(year, obs_nao, ensemble_mean_nao, ensemble_members_nao, season,
@@ -1015,12 +1015,11 @@ def rescale_nao_by_year(year, obs_nao, ensemble_mean_nao, ensemble_members_nao, 
     print(f"Rescaling NAO indices for {year}")
 
     # Make sure that the years for obs_nao, ensemble_mean_nao, and ensemble_members_nao are the same
-    obs_years = obs_nao[:, 0, 0]
-    ensemble_mean_nao_years = ensemble_mean_nao[:, 0, 0]
-    ensemble_members_nao_years = ensemble_members_nao[0, :, 0, 0]
+    obs_years = obs_nao.time.dt.year.values
+    ensemble_mean_nao_years = ensemble_mean_nao.time.dt.year.values
 
     # If the years are not the same
-    if len(obs_years) != len(ensemble_mean_nao_years) or len(obs_years) != len(ensemble_members_nao_years) or len(ensemble_mean_nao_years) != len(ensemble_members_nao_years):
+    if len(obs_years) != len(ensemble_mean_nao_years):
         # Print a warning and exit the program
         print("The years for obs_nao, ensemble_mean_nao, and ensemble_members_nao are not the same")
         sys.exit()
@@ -1030,34 +1029,31 @@ def rescale_nao_by_year(year, obs_nao, ensemble_mean_nao, ensemble_members_nao, 
         AssertionError("The type of ensemble_mean_nao and ensemble_members_nao must be a numpy array")
         sys.exit()
 
-    # Extract the years from the ensemble members
-    ensemble_members_years = ensemble_members_nao[0, :, 0, 0]
-
     # If the year is not in the ensemble members years
-    if year not in ensemble_members_years:
+    if year not in ensemble_mean_nao_years:
         # Print a warning and exit the program
         print(f"Year {year} is not in the ensemble members years")
         sys.exit()
 
     # Extract the index for the year
-    year_index = np.where(ensemble_members_years == year)[0]
+    year_index = np.where(ensemble_mean_nao_years == year)[0]
 
     # Extract the ensemble members for the year
-    ensemble_members_nao_year = ensemble_members_nao[:, year_index, :, :]
+    ensemble_members_nao_year = ensemble_members_nao[:, year_index]
 
     # Compute the ensemble mean NAO for this year
     ensemble_mean_nao_year = ensemble_members_nao_year.mean(axis=0)
 
     # Set up the indicies for the cross-validation
     # In the case of the first year
-    if year == ensemble_members_years[0]:
+    if year == ensemble_mean_nao_years[0]:
         print("Cross-validation case for the first year")
         print("Removing the first year and:", omit_no_either_side, "years forward")
         # Set up the indices to use for the cross-validation
         # Remove the first year and omit_no_either_side years forward
         cross_validation_indices = np.arange(0, omit_no_either_side + 1)
     # In the case of the last year
-    elif year == ensemble_members_years[-1]:
+    elif year == ensemble_mean_nao_years[-1]:
         print("Cross-validation case for the last year")
         print("Removing the last year and:", omit_no_either_side, "years backward")
         # Set up the indices to use for the cross-validation
@@ -1625,6 +1621,9 @@ def main():
     obs_nao, model_nao = calculate_nao_index_and_plot(obs_anomaly, model_anomaly, models, args.variable, args.season,
                                                             args.forecast_range, output_dir, plot_graphics=False)
 
+    # Test the NAO rescaling function
+    rescaled_nao, ensemble_mean_nao, ensemble_members_nao = rescale_nao(obs_nao, model_nao, models, args.season,
+                                                                        args.forecast_range, output_dir, lagged=False)
 
 if __name__ == '__main__':
     main()
