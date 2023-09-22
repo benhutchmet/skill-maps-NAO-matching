@@ -1024,9 +1024,15 @@ def rescale_nao_by_year(year, obs_nao, ensemble_mean_nao, ensemble_members_nao, 
         print("The years for obs_nao, ensemble_mean_nao, and ensemble_members_nao are not the same")
         sys.exit()
 
+    # if the type of obs_nao is not a numpy array
+    # Then convert to a numpy array
+    if type(obs_nao) != np.ndarray:
+        print("Converting obs_nao to a numpy array")
+        obs_nao = obs_nao.values
+
     # Ensure that the type of ensemble_mean_nao and ensemble_members_nao is a an array
-    if type(ensemble_mean_nao) and type(ensemble_members_nao) != np.ndarray:
-        AssertionError("The type of ensemble_mean_nao and ensemble_members_nao must be a numpy array")
+    if type(ensemble_mean_nao) and type(ensemble_members_nao) != np.ndarray and type(obs_nao) != np.ndarray:
+        AssertionError("The type of ensemble_mean_nao and ensemble_members_nao and obs_nao is not a numpy array")
         sys.exit()
 
     # If the year is not in the ensemble members years
