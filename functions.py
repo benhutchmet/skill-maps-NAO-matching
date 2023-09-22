@@ -2060,8 +2060,11 @@ def main():
     """
 
     # Set up the variables for testing
-    models = dic.psl_full_models
+    psl_models = dic.psl_full_models
+    tas_models = dic.tas_models
     output_dir = dic.plots_dir_canari
+    match_var_tas = "tas"
+
 
     # Extract the command line arguments
     parser = argparse.ArgumentParser()
@@ -2088,34 +2091,34 @@ def main():
                                 args.end_year, level=args.level)
     
     # Load and process the model data
-    datasets = load_data(dic.base_dir_skm_pro, models, args.variable, args.region,
+    datasets = load_data(dic.base_dir_skm_pro, psl_models, args.variable, args.region,
                             args.forecast_range, args.season)
 
     # Process the model data
     model_anomaly, _ = process_data(datasets, args.variable)
 
     # Make sure that the model and obs have the same time period
-    model_anomaly = constrain_years(model_anomaly, models)
+    model_anomaly = constrain_years(model_anomaly, psl_models)
 
     # Remove years containing nans from the observations and align the time periods
     # for the observations and model
-    obs_anomaly, model_anomaly = remove_years_with_nans(obs_anomaly, model_anomaly, models)
+    obs_anomaly, model_anomaly = remove_years_with_nans(obs_anomaly, model_anomaly, psl_models)
 
     # Calculate the NAO index
-    obs_nao, model_nao = calculate_nao_index_and_plot(obs_anomaly, model_anomaly, models, args.variable, args.season,
+    obs_nao, model_nao = calculate_nao_index_and_plot(obs_anomaly, model_anomaly, psl_models, args.variable, args.season,
                                                             args.forecast_range, output_dir, plot_graphics=False)
 
     # Test the NAO rescaling function
-    rescaled_nao, ensemble_mean_nao, ensemble_members_nao = rescale_nao(obs_nao, model_nao, models, args.season,
+    rescaled_nao, ensemble_mean_nao, ensemble_members_nao = rescale_nao(obs_nao, model_nao, psl_models, args.season,
                                                                         args.forecast_range, output_dir, lagged=False)
     
-    # Calculate the closest members
-    # test case set year
-    year = 1966
-    # Calculate the closest members
-    smallest_diff = calculate_closest_members(year, rescaled_nao, model_nao, models, args.season, args.forecast_range, 
-                                output_dir, lagged=False, no_subset_members=20)
-
+    # Perform the NAO matching for the other variable
+    # in this test case we will use the tas field
+    matched_tas_ensemble_mean = nao_matching_other_var(rescaled_nao, model_nao, psl_models, match_var_tas,
+                                                        dic.base_dir_skm_pro, args.observations_path, tas_models, args.region, args.season,
+                                                            args.forecast_range, args.start_year, args.end_year, output_dir, 
+                                                                lagged=False, no_subset_members=20)
+    
 
 if __name__ == '__main__':
     main()
