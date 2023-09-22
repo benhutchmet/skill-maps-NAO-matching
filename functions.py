@@ -903,13 +903,13 @@ def calculate_nao_index_and_plot(obs_anomaly, model_anomaly, models, variable, s
     # If the plot_graphics flag is set to True
     if plot_graphics:
         # First calculate the ensemble mean NAO index
-        ensemble_mean_var, _ = calculate_ensemble_mean(model_nao, models)
+        ensemble_mean_nao, _ = calculate_ensemble_mean_nao_index(model_nao, models)
 
         # Calculate the correlation coefficients between the observed and model data
-        r, p, _, _, _, _ = calculate_nao_correlations(obs_nao, ensemble_mean_var, variable)
+        r, p, _, _, _, _ = calculate_nao_correlations(obs_nao, ensemble_mean_nao, variable)
 
         # Plot the NAO index
-        plot_nao_index(obs_nao, ensemble_mean_var, variable, season, forecast_range, r, p, output_dir,
+        plot_nao_index(obs_nao, ensemble_mean_nao, variable, season, forecast_range, r, p, output_dir,
                             ensemble_members_count, nao_type=nao_type)
         
     return obs_nao, model_nao
@@ -942,17 +942,17 @@ def rescale_nao(obs_nao, model_nao, models, season, forecast_range, output_dir, 
     -------
     rescaled_model_nao : numpy.ndarray
         Array contains the rescaled NAO index.
-    ensemble_mean_var : numpy.ndarray
+    ensemble_mean_nao : numpy.ndarray
         Ensemble mean NAO index. Not rescaled
-    ensemble_members_var : numpy.ndarray
+    ensemble_members_nao : numpy.ndarray
         Ensemble members NAO index. Not rescaled
     """
 
     # First calculate the ensemble mean NAO index
-    ensemble_mean_var, ensemble_members_var = calculate_ensemble_mean(model_nao, models)
+    ensemble_mean_nao, ensemble_members_nao = calculate_ensemble_mean_nao_index(model_nao, models)
 
     # Extract the years from the ensemble members
-    model_years = ensemble_mean_var.time.dt.year.values
+    model_years = ensemble_mean_nao.time.dt.year.values
     # Extract the years from the obs
     obs_years = obs_nao.time.dt.year.values
 
@@ -975,7 +975,7 @@ def rescale_nao(obs_nao, model_nao, models, season, forecast_range, output_dir, 
     for i, year in enumerate(model_years):
 
         # Compute the rescaled NAO index for this year
-        signal_adjusted_nao_index_year, _ = rescale_nao_by_year(year, obs_nao, ensemble_mean_var, ensemble_members_var, season,
+        signal_adjusted_nao_index_year, _ = rescale_nao_by_year(year, obs_nao, ensemble_mean_nao, ensemble_members_nao, season,
                                                             forecast_range, output_dir, lagged=False, omit_no_either_side=1)
 
         # Append the rescaled NAO index to the list, along with the year
@@ -983,7 +983,7 @@ def rescale_nao(obs_nao, model_nao, models, season, forecast_range, output_dir, 
 
     # Convert the list to an xarray DataArray
     # With the same coordinates as the ensemble mean NAO index
-    rescaled_model_nao = xr.DataArray(rescaled_model_nao, coords=ensemble_mean_var.coords, dims=ensemble_mean_var.dims)
+    rescaled_model_nao = xr.DataArray(rescaled_model_nao, coords=ensemble_mean_nao.coords, dims=ensemble_mean_nao.dims)
 
     # If the time type is not datetime64 for the rescaled model nao
     # Then convert the time type to datetime64
@@ -994,10 +994,10 @@ def rescale_nao(obs_nao, model_nao, models, season, forecast_range, output_dir, 
         rescaled_model_nao = rescaled_model_nao.assign_coords(time=rescaled_model_nao_time)
 
     # Return the rescaled model NAO index
-    return rescaled_model_nao, ensemble_mean_var, ensemble_members_var
+    return rescaled_model_nao, ensemble_mean_nao, ensemble_members_nao
 
 # Define a new function to rescalse the NAO index for each year
-def rescale_nao_by_year(year, obs_nao, ensemble_mean_var, ensemble_members_var, season,
+def rescale_nao_by_year(year, obs_nao, ensemble_mean_nao, ensemble_members_nao, season,
                             forecast_range, output_dir, lagged=False, omit_no_either_side=1):
     """
     Rescales the observed and model NAO indices for a given year and season, and saves the results to disk.
@@ -1008,9 +1008,9 @@ def rescale_nao_by_year(year, obs_nao, ensemble_mean_var, ensemble_members_var, 
         The year for which to rescale the NAO indices.
     obs_nao : pandas.DataFrame
         A DataFrame containing the observed NAO index values, with a DatetimeIndex.
-    ensemble_mean_var : pandas.DataFrame
+    ensemble_mean_nao : pandas.DataFrame
         A DataFrame containing the ensemble mean NAO index values, with a DatetimeIndex.
-    ensemble_members_var : dict
+    ensemble_members_nao : dict
         A dictionary containing the NAO index values for each ensemble member, with a DatetimeIndex.
     season : str
         The season for which to rescale the NAO indices. Must be one of 'DJF', 'MAM', 'JJA', or 'SON'.
@@ -1030,11 +1030,11 @@ def rescale_nao_by_year(year, obs_nao, ensemble_mean_var, ensemble_members_var, 
     print(f"Rescaling NAO indices for {year}")
 
     # Extract the model years
-    model_years = ensemble_mean_var.time.dt.year.values
+    model_years = ensemble_mean_nao.time.dt.year.values
 
-    # Ensure that the type of ensemble_mean_var and ensemble_members_var is a an array
-    if type(ensemble_mean_var) and type(ensemble_members_var) != np.ndarray and type(obs_nao) != np.ndarray:
-        AssertionError("The type of ensemble_mean_var and ensemble_members_var and obs_nao is not a numpy array")
+    # Ensure that the type of ensemble_mean_nao and ensemble_members_nao is a an array
+    if type(ensemble_mean_nao) and type(ensemble_members_nao) != np.ndarray and type(obs_nao) != np.ndarray:
+        AssertionError("The type of ensemble_mean_nao and ensemble_members_nao and obs_nao is not a numpy array")
         sys.exit()
 
     # If the year is not in the ensemble members years
@@ -1047,7 +1047,7 @@ def rescale_nao_by_year(year, obs_nao, ensemble_mean_var, ensemble_members_var, 
     year_index = np.where(model_years == year)[0]
 
     # Extract the ensemble members for the year
-    ensemble_members_nao_year = ensemble_members_var[:, year_index]
+    ensemble_members_nao_year = ensemble_members_nao[:, year_index]
 
     # Compute the ensemble mean NAO for this year
     ensemble_mean_nao_year = ensemble_members_nao_year.mean(axis=0)
@@ -1081,7 +1081,7 @@ def rescale_nao_by_year(year, obs_nao, ensemble_mean_var, ensemble_members_var, 
 
     # Extract the ensemble members for the cross-validation
     # i.e. don't use the years given by the cross_validation_indices
-    ensemble_members_nao_array_cross_val = np.delete(ensemble_members_var, cross_validation_indices, axis=1)
+    ensemble_members_nao_array_cross_val = np.delete(ensemble_members_nao, cross_validation_indices, axis=1)
     # Take the mean over the ensemble members
     # to get the ensemble mean nao for the cross-validation
     ensemble_mean_nao_cross_val = ensemble_members_nao_array_cross_val.mean(axis=0)
@@ -1582,7 +1582,7 @@ def form_ensemble_members_list(model_nao, models):
 
 
 # Define a function for plotting the NAO index
-def plot_nao_index(obs_nao, ensemble_mean_var, variable, season, forecast_range, r, p, output_dir, 
+def plot_nao_index(obs_nao, ensemble_mean_nao, variable, season, forecast_range, r, p, output_dir, 
                         ensemble_members_count, experiment = "dcppA-hindcast", nao_type="default"):
     """
     Plots the NAO index for both the observations and model data.
@@ -1591,7 +1591,7 @@ def plot_nao_index(obs_nao, ensemble_mean_var, variable, season, forecast_range,
     ----------
     obs_nao : xarray.Dataset
         Observations.
-    ensemble_mean_var : xarray.Dataset
+    ensemble_mean_nao : xarray.Dataset
         Ensemble mean of the model data.
     variable : str
         Variable name.
@@ -1631,11 +1631,11 @@ def plot_nao_index(obs_nao, ensemble_mean_var, variable, season, forecast_range,
     # Process the obs and the model data
     # from Pa to hPa
     obs_nao = obs_nao / 100
-    ensemble_mean_var = ensemble_mean_var / 100
+    ensemble_mean_nao = ensemble_mean_nao / 100
 
     # Extract the years
     obs_years = obs_nao.time.dt.year.values
-    model_years = ensemble_mean_var.time.dt.year.values
+    model_years = ensemble_mean_nao.time.dt.year.values
 
     # If the obs years and model years are not the same
     if len(obs_years) != len(model_years):
@@ -1645,7 +1645,7 @@ def plot_nao_index(obs_nao, ensemble_mean_var, variable, season, forecast_range,
     plt.plot(obs_years, obs_nao, label="ERA5", color="black")
 
     # Plot the ensemble mean
-    plt.plot(model_years, ensemble_mean_var, label="dcppA", color="red")
+    plt.plot(model_years, ensemble_mean_nao, label="dcppA", color="red")
 
     # Add a horizontal line at y=0
     plt.axhline(y=0, color="black", linestyle="--", linewidth=1)
@@ -1788,16 +1788,16 @@ def calculate_correlations_1D(observed_data, model_data):
 # Define a function to calculate the ensemble mean NAO index
 def calculate_ensemble_mean(model_var, models):
     """
-    Calculates the ensemble mean for the given model data.
+    Calculates the ensemble mean NAO index for the given model data.
     
     Parameters
     ----------
-    model_var (dict): The model data containing the variable data for each ensemble member.
+    model_nao (dict): The model data containing the NAO index for each ensemble member.
     models (list): The list of models to be plotted.
     
     Returns
     -------
-    ensemble_mean_var (xarray.core.dataarray.DataArray): The equally weighted ensemble mean of the ensemble members.
+    ensemble_mean_nao (xarray.core.dataarray.DataArray): The equally weighted ensemble mean of the ensemble members.
     """
 
     # Initialize a list for the ensemble members
@@ -1820,7 +1820,7 @@ def calculate_ensemble_mean(model_var, models):
     ensemble_mean_var = np.mean(ensemble_members_var, axis=0)
 
     # Convert the ensemble mean NAO index to an xarray DataArray
-    ensemble_mean_var = xr.DataArray(ensemble_mean_var, coords=member.coords, dims=member.dims)
+    ensemble_mean_var = xr.DataArray(ensemble_mean_nao, coords=member.coords, dims=member.dims)
 
     return ensemble_mean_var, ensemble_members_var    
 
@@ -2044,7 +2044,7 @@ def main():
                                                             args.forecast_range, output_dir, plot_graphics=False)
 
     # Test the NAO rescaling function
-    rescaled_nao, ensemble_mean_var, ensemble_members_var = rescale_nao(obs_nao, model_nao, models, args.season,
+    rescaled_nao, ensemble_mean_nao, ensemble_members_nao = rescale_nao(obs_nao, model_nao, models, args.season,
                                                                         args.forecast_range, output_dir, lagged=False)
     
     # Calculate the closest members
