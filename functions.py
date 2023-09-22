@@ -1332,11 +1332,73 @@ def nao_matching_other_var(rescaled_model_nao, model_nao, psl_models, match_vari
 
     # Now we want to make sure that the match_var_model_anomalies and the model_nao
     # have the same models
-    model_nao_constrained, match_var_model_anomalies_constrained \
-                                                            = constrain_models_members(model_nao, psl_models, 
-                                                                                        match_var_model_anomalies, match_var_models)
+    model_nao_constrained, match_var_model_anomalies_constrained, \
+    models_in_both = constrain_models_members(model_nao, psl_models, 
+                                                match_var_model_anomalies, match_var_models)
+    
+    # Make sure that the years for rescaled_model_nao and model_nao 
+    # and match_var_model_anomalies_constrained are the same
+    rescaled_model_years = rescaled_model_nao.time.dt.year.values
+    model_nao_years = model_nao_constrained[psl_models[0]][0].time.dt.year.values
+    match_var_model_years = match_var_model_anomalies_constrained[match_var_models[0]][0].time.dt.year.values
+
+    # If the years are not equal
+    if not np.array_equal(rescaled_model_years, model_nao_years) or not np.array_equal(rescaled_model_years, match_var_model_years):
+        # Print a warning and exit the program
+        print("The years for the rescaled model NAO, the model NAO and the matched variable model anomalies are not equal")
+        sys.exit()
+    
+    # Set up the years to loop over
+    years = rescaled_model_years
                                                                                     
     # TODO: Loop over the years and perform the NAO matching
+    for i, year in enumerate(years):
+        print("Selecting members for year: ", year)
+
+        # Extract the members with the closest NAO index to the rescaled NAO index
+        # for the given year
+        smallest_diff = calculate_closest_members(year, rescaled_model_nao, model_nao_constrained, models_in_both, 
+                                                    season, forecast_range, output_dir, lagged=lagged,
+                                                        no_subset_members=no_subset_members)  
+
+        # Using the closest NAO index members, extract the same members
+        # for the matched variable
+        matched_var_members = extract_matched_var_members(match_var_model_anomalies_constrained, smallest_diff)
+
+
+# Define a function which will extract the right model members for the matched variable
+def extract_matched_var_members(match_var_model_anomalies_constrained, smallest_diff):
+    """
+    Extracts the right model members for the matched variable.
+    These members have the correct magnitude of the NAO index.
+    """
+
+    # Create an empty list to store the matched variable members
+    matched_var_members = []
+
+    # Extract the models from the smallest_diff
+    smallest_diff_models = [member.attrs["source_id"] for member in smallest_diff]
+
+    # Loop over the models in the smallest_diff
+    for model in smallest_diff_models:
+        # Extract the model data for the model
+        model_data = match_var_model_anomalies_constrained[model]
+
+        # Extract the members for this model within the smallest_diff
+        smallest_diff_members = [member.attrs["variant_label"] for member in smallest_diff if member.attrs["source_id"] == model]
+
+        # Loop over the members in the model_data
+        for member in model_data:
+            # If the member is in the smallest_diff_members
+            if member.attrs["variant_label"] in smallest_diff_members:
+                # Append the member to the matched_var_members
+                matched_var_members.append(member)
+            else:
+                continue
+
+    # return the matched_var_members
+    return matched_var_members
+
 
 # Define a function which will make sure that the model_nao and the match_var_model_anomalies
 # have the same models and members
@@ -1412,7 +1474,7 @@ def constrain_models_members(model_nao, psl_models, match_var_model_anomalies, m
                 # Append the member to the match_var_models_dict
                 match_var_models_dict[model].append(member)
 
-    return psl_models_dict, match_var_models_dict
+    return psl_models_dict, match_var_models_dict, models_in_both
 
 def filter_model_data_by_variant_labels(model_data, variant_labels_in_both, model_dict):
     """
