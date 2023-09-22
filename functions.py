@@ -1229,9 +1229,9 @@ def calculate_closest_members(year, rescaled_model_nao, model_nao, models, seaso
         # Extract the data for the year
         model_nao_year = member.sel(time=f"{year}")
 
-        # Print the model name and the member name
-        print("Model:", member.attrs["source_id"])
-        print("Member:", member.attrs["variant_label"])
+        # # Print the model name and the member name
+        # print("Model:", member.attrs["source_id"])
+        # print("Member:", member.attrs["variant_label"])
 
         # Calculate the difference between the rescaled NAO index and the model NAO index
         nao_diff = np.abs(rescaled_model_nao_year - model_nao_year)
@@ -1351,8 +1351,12 @@ def nao_matching_other_var(rescaled_model_nao, model_nao, psl_models, match_vari
     # Set up the years to loop over
     years = rescaled_model_years
 
+    # Set up the lats and lons for the array
+    lats = match_var_model_anomalies_constrained[match_var_models[0]][0].lat.values
+    lons = match_var_model_anomalies_constrained[match_var_models[0]][0].lon.values
+
     # Set up an array to fill the matched variable ensemble mean
-    matched_var_ensemble_mean_array = np.empty((len(years)))
+    matched_var_ensemble_mean_array = np.empty((len(years), len(lats), len(lons)))
                                                                                     
     # TODO: Loop over the years and perform the NAO matching
     for i, year in enumerate(years):
@@ -1443,22 +1447,39 @@ def extract_matched_var_members(match_var_model_anomalies_constrained, smallest_
     # Extract the models from the smallest_diff
     smallest_diff_models = [member.attrs["source_id"] for member in smallest_diff]
 
+    # Create a dictionary to store the models and their members contained within the smallest_diff
+    smallest_diff_models_dict = {}
+    # Loop over the members in the smallest_diff
+    for member in smallest_diff:
+        # Extract the model name
+        model_name = member.attrs["source_id"]
+
+        # Extract the associated variant label
+        variant_label = member.attrs["variant_label"]
+
+        # Append this pair to the dictionary
+        model_variant_pair = (model_name, variant_label)
+
+        # Add the model and variant label pair to the dictionary
+        if model_name in smallest_diff_models_dict:
+            smallest_diff_models_dict[model_name].add(model_variant_pair)
+        else:
+            smallest_diff_models_dict[model_name] = {model_variant_pair}
+    
     # Loop over the models in the smallest_diff
     for model in smallest_diff_models:
-        # Extract the model data for the model
-        model_data = match_var_model_anomalies_constrained[model]
+        # Extract the pair from the dictionary
+        model_variant_pairs = smallest_diff_models_dict[model]
 
-        # Extract the members for this model within the smallest_diff
-        smallest_diff_members = [member.attrs["variant_label"] for member in smallest_diff if member.attrs["source_id"] == model]
+        # extract the model data for the model
+        model_data = match_var_model_anomalies_constrained[model]
 
         # Loop over the members in the model_data
         for member in model_data:
-            # If the member is in the smallest_diff_members
-            if member.attrs["variant_label"] in smallest_diff_members:
+            # Check if the model and variant label pair is in the model_variant_pairs
+            if (member.attrs["source_id"], member.attrs["variant_label"]) in model_variant_pairs:
                 # Append the member to the matched_var_members
                 matched_var_members.append(member)
-            else:
-                continue
 
     # return the matched_var_members
     return matched_var_members
@@ -1512,7 +1533,7 @@ def constrain_models_members(model_nao, psl_models, match_var_model_anomalies, m
         print("Variant labels for the model match_var:", variant_labels_match_var)
 
         # If the two variant labels lists are not equal
-        if not np.array_equal(variant_labels_psl, variant_labels_match_var):
+        if not set(variant_labels_psl) == set(variant_labels_match_var):
             # Print a warning and exit the program
             print("The two variant labels lists are not equal")
             print("Constraining the variant labels")
@@ -2115,7 +2136,7 @@ def main():
     # Perform the NAO matching for the other variable
     # in this test case we will use the tas field
     matched_tas_ensemble_mean = nao_matching_other_var(rescaled_nao, model_nao, psl_models, match_var_tas,
-                                                        dic.base_dir_skm_pro, args.observations_path, tas_models, args.region, args.season,
+                                                        dic.base_dir_skm_pro, tas_models, args.observations_path, args.region, args.season,
                                                             args.forecast_range, args.start_year, args.end_year, output_dir, 
                                                                 lagged=False, no_subset_members=20)
     
