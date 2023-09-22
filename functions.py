@@ -1255,7 +1255,7 @@ def calculate_closest_members(year, rescaled_model_nao, model_nao, models, seaso
     for i, member in enumerate(smallest_diff):
         print("Smallest difference member:", i+1)
         # print the model name and the member name
-        print("Model:", member.attrs["model"])
+        print("Model:", member.attrs["source_id"])
         print("Member:", member.attrs["variant_label"])
 
     return smallest_diff
