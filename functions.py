@@ -1350,6 +1350,9 @@ def nao_matching_other_var(rescaled_model_nao, model_nao, psl_models, match_vari
     
     # Set up the years to loop over
     years = rescaled_model_years
+
+    # Set up an array to fill the matched variable ensemble mean
+    matched_var_ensemble_mean_array = np.empty((len(years)))
                                                                                     
     # TODO: Loop over the years and perform the NAO matching
     for i, year in enumerate(years):
@@ -1368,22 +1371,18 @@ def nao_matching_other_var(rescaled_model_nao, model_nao, psl_models, match_vari
         matched_var_members_array = np.empty((len(matched_var_members)))
 
         # Now we want to calculate the ensemble mean for the matched variable for this year
-        for i, member in enumerate(matched_var_members):
-            # Extract the data for the year
-            match_var_member_year = member.sel(time=f"{year}")
+        matched_var_ensemble_mean = calculate_matched_var_ensemble_mean(matched_var_members, year)
 
-            # Append the data to the array
-            matched_var_members_array[i] = match_var_member_year
+        # Append the matched_var_ensemble_mean to the array
+        matched_var_ensemble_mean_array[i] = matched_var_ensemble_mean
 
-        # Calculate the ensemble mean for the matched variable for this year
-        matched_var_ensemble_mean = np.mean(matched_var_members_array, axis=0)
+    # Convert the matched_var_ensemble_mean_array to an xarray DataArray
+    coords = matched_var_members[0].coords
+    dims = matched_var_members[0].dims
+    matched_var_ensemble_mean = xr.DataArray(matched_var_ensemble_mean_array, coords=coords, dims=dims)
 
-        # Convert the matched_var_ensemble_mean to an xarray DataArray
-        coords=matched_var_members[0].coords
-        dims=matched_var_members[0].dims
-
-        # Convert the list to an xarray DataArray
-        matched_var_ensemble_mean = xr.DataArray(matched_var_ensemble_mean, coords=coords, dims=dims)
+    # Return the matched_var_ensemble_mean
+    return matched_var_ensemble_mean
 
 
 # Function to calculate the ensemble mean for the matched variable
@@ -1416,7 +1415,7 @@ def calculate_matched_var_ensemble_mean(matched_var_members, year):
             # Print a warning and exit the program
             print("The data is not for the correct year")
             sys.exit()
-            
+
         # Append the data to the array
         matched_var_members_array[i] = member
 
