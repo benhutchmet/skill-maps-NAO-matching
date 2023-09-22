@@ -1260,6 +1260,148 @@ def calculate_closest_members(year, rescaled_model_nao, model_nao, models, seaso
 
     return smallest_diff
 
+# Write a function which performs the NAO matching
+def nao_matching_other_var(rescaled_model_nao, model_nao, psl_models, match_variable, match_var_base_dir,
+                            match_var_models, match_var_obs_path, region, season, forecast_range, 
+                                start_year, end_year, output_dir, lagged=False, 
+                                    no_subset_members=20, level = None):
+    """
+    Performs the NAO matching for the given variable. E.g. T2M.
+
+    Parameters
+    ----------
+    rescaled_model_nao : xarray.DataArray
+        Rescaled NAO index.
+    model_nao : dict
+        Dictionary of model data. Sorted by model.
+        Each model contains a list of ensemble members, which are xarray datasets containing the NAO index.
+    psl_models : list
+        List of models to be plotted. Different models for each variable.
+    match_variable : str
+        Variable name for the variable which will undergo matching.
+    match_var_base_dir : str
+        Path to the base directory containing the variable data.
+    match_var_models : list
+        List of models to be plotted for the matched variable. Different models for each variable.
+    region : str
+        Region name.
+    season : str
+        Season name.
+    forecast_range : str
+        Forecast range.
+    start_year : int
+        Start year.
+    end_year : int
+        End year.
+    output_dir : str
+        Path to the output directory.
+    lagged : bool, optional
+        Flag to indicate whether the ensemble is lagged or not. The default is False.
+    no_subset_members : int, optional
+        Number of ensemble members to subset. The default is 20.
+    level : int, optional
+        Pressure level. The default is None. For the matched variable.
+    
+    Returns
+    -------
+    None
+    """
+
+    # Print the variable which is being matched
+    print(f"Performing NAO matching for {match_variable}")
+
+    # Extract the obs data for the matched variable
+    match_var_obs_anomalies = read_obs(match_variable, region, forecast_range,
+                                        season, match_var_obs_path, start_year, end_year, level=level)
+    
+    # Extract the model data for the matched variable
+    match_var_datasets = load_data(match_var_base_dir, match_var_models, match_variable, 
+                                    region, forecast_range, season, level=level)
+    
+    # process the model data
+    match_var_model_anomalies, _ = process_data(match_var_datasets, match_variable)
+
+    # Make sure that each of the models have the same time period
+    match_var_model_anomalies = constrain_years(match_var_model_anomalies, match_var_models)
+
+    # Remove years containing NaN values from the obs and model data
+    # and align the time periods
+    match_var_obs_anomalies, match_var_model_anomalies = remove_years_with_nans(match_var_obs_anomalies,
+                                                                                    match_var_model_anomalies,
+                                                                                        match_var_models)
+
+    # Now we want to make sure that the match_var_model_anomalies and the model_nao
+    # have the same models
+                                                                                    
+
+
+# Define a function which will make sure that the model_nao and the match_var_model_anomalies
+# have the same models and members
+def constrain_models_members(model_nao, psl_models, match_var_model_anomalies, match_var_models):
+    """
+    Makes sure that the model_nao and the match_var_model_anomalies have the same models and members.
+    """
+
+    # Set up dictionaries to store the models and members
+    psl_models_dict = {}
+    match_var_models_dict = {}
+
+    # If the two models lists are not equal
+    if not np.array_equal(psl_models, match_var_models):
+        # Print a warning and exit the program
+        print("The two models lists are not equal")
+        print("Constraining the models")
+
+        # Find the models that are in both the psl_models and the match_var_models
+        models_in_both = np.intersect1d(psl_models, match_var_models)
+    else:
+        # Set the models_in_both to the psl_models
+        print("The two models lists are equal")
+        models_in_both = psl_models
+
+    # Loop over the models in the model_nao
+    for model in models_in_both:
+        print("Model:", model)
+
+        # Append the model to the psl_models_dict
+        psl_models_dict[model] = []
+
+        # Append the model to the match_var_models_dict
+        match_var_models_dict[model] = []
+
+        # Extract the NAO data for the model
+        model_nao_by_model = model_nao[model]
+
+        # Extract the match_var_model_anomalies for the model
+        match_var_model_anomalies_by_model = match_var_model_anomalies[model]
+
+        # Extract a list of the variant labels for the model
+        variant_labels_psl = [member.attrs["variant_label"] for member in model_nao_by_model]
+        print("Variant labels for the model psl:", variant_labels_psl)
+        # Extract a list of the variant labels for the match_var_model_anomalies
+        variant_labels_match_var = [member.attrs["variant_label"] for member in match_var_model_anomalies_by_model]
+        print("Variant labels for the model match_var:", variant_labels_match_var)
+
+        # If the two variant labels lists are not equal
+        if not np.array_equal(variant_labels_psl, variant_labels_match_var):
+            # Print a warning and exit the program
+            print("The two variant labels lists are not equal")
+            print("Constraining the variant labels")
+
+            # Find the variant labels that are in both the variant_labels_psl and the variant_labels_match_var
+            variant_labels_in_both = np.intersect1d(variant_labels_psl, variant_labels_match_var)
+
+            # Now loop over the model_nao_by_model
+            for member in model_nao_by_model:
+                # Extract the variant label for the member
+                variant_label = member.attrs["variant_label"]
+
+                # If the variant label is not in the variant_labels_in_both
+                if variant_label not in variant_labels_in_both:
+                    # Remove the member from the model_nao_by_model
+                    model_nao_by_model.remove(member)
+
+
 
 # Define a new function to form the list of ensemble members
 def form_ensemble_members_list(model_nao, models):
