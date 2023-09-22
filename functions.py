@@ -1238,13 +1238,14 @@ def calculate_closest_members(year, rescaled_model_nao, model_nao, models, seaso
         # Add the attributes to the diff
         nao_diff.attrs = member_attributes
         
-        # Append the difference to the list if it is in the top no_subset_members values
-        if len(smallest_diff) < no_subset_members:
-            smallest_diff.append(nao_diff)
-        else:
-            smallest_diff.sort()
-            if nao_diff < smallest_diff[-1]:
-                smallest_diff[-1] = nao_diff
+        # Append the difference to the list
+        smallest_diff.append(nao_diff)
+
+    # Sort the list of differences
+    smallest_diff.sort()
+
+    # Select only the first no_subset_members members
+    smallest_diff = smallest_diff[:no_subset_members]
 
     # Loop over the members with the smallest differences
     for i, member in enumerate(smallest_diff):
