@@ -1215,7 +1215,7 @@ def calculate_closest_members(year, rescaled_model_nao, model_nao, models, seaso
         print("The years for the rescaled NAO index and the model NAO index are not equal")
         sys.exit()
 
-    # Initialize a dictionary to store the smallest difference between the rescaled NAO index and the model NAO index
+    # Initialize a list to store the smallest difference between the rescaled NAO index and the model NAO index
     smallest_diff = []
 
     # Extract the data for the year for the rescaled NAO index
@@ -1229,10 +1229,6 @@ def calculate_closest_members(year, rescaled_model_nao, model_nao, models, seaso
         # Extract the data for the year
         model_nao_year = member.sel(time=f"{year}")
 
-        # # Print the model name and the member name
-        # print("Model:", member.attrs["source_id"])
-        # print("Member:", member.attrs["variant_label"])
-
         # Calculate the difference between the rescaled NAO index and the model NAO index
         nao_diff = np.abs(rescaled_model_nao_year - model_nao_year)
 
@@ -1242,14 +1238,13 @@ def calculate_closest_members(year, rescaled_model_nao, model_nao, models, seaso
         # Add the attributes to the diff
         nao_diff.attrs = member_attributes
         
-        # Append the difference to the list
-        smallest_diff.append(nao_diff)
-
-        # Sort the list by the smallest difference
-        smallest_diff.sort()
-
-    # Select the first no_subset_members members, with the smallest differences
-    smallest_diff = smallest_diff[:no_subset_members]
+        # Append the difference to the list if it is in the top no_subset_members values
+        if len(smallest_diff) < no_subset_members:
+            smallest_diff.append(nao_diff)
+        else:
+            smallest_diff.sort()
+            if nao_diff < smallest_diff[-1]:
+                smallest_diff[-1] = nao_diff
 
     # Loop over the members with the smallest differences
     for i, member in enumerate(smallest_diff):
@@ -1446,6 +1441,9 @@ def extract_matched_var_members(match_var_model_anomalies_constrained, smallest_
 
     # Extract the models from the smallest_diff
     smallest_diff_models = [member.attrs["source_id"] for member in smallest_diff]
+
+    # Extract only the unique models
+    smallest_diff_models = np.unique(smallest_diff_models)
 
     # Create a dictionary to store the models and their members contained within the smallest_diff
     smallest_diff_models_dict = {}
