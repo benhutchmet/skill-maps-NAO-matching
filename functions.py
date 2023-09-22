@@ -985,6 +985,14 @@ def rescale_nao(obs_nao, model_nao, models, season, forecast_range, output_dir, 
     # With the same coordinates as the ensemble mean NAO index
     rescaled_model_nao = xr.DataArray(rescaled_model_nao, coords=ensemble_mean_nao.coords, dims=ensemble_mean_nao.dims)
 
+    # If the time type is not datetime64 for the rescaled model nao
+    # Then convert the time type to datetime64
+    if type(rescaled_model_nao.time.values[0]) != np.datetime64:
+        rescaled_model_nao_time = rescaled_model_nao.time.astype('datetime64[ns]')
+
+        # Modify the time coordinate using the assign_coords() method
+        rescaled_model_nao = rescaled_model_nao.assign_coords(time=rescaled_model_nao_time)
+
     # Return the rescaled model NAO index
     return rescaled_model_nao, ensemble_mean_nao, ensemble_members_nao
 
