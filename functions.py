@@ -1207,14 +1207,82 @@ def calculate_closest_members(year, rescaled_model_nao, model_nao, models, seaso
         print("The years for the rescaled NAO index and the model NAO index are not equal")
         sys.exit()
 
-    # Set up a dictionary to store the number of ensemble members for each model
-    ensemble_members_count = {}
+    # Initialize a dictionary to store the smallest difference between the rescaled NAO index and the model NAO index
+    smallest_diff = []
 
     # Extract the data for the year for the rescaled NAO index
     rescaled_model_nao_year = rescaled_model_nao.sel(time=f"{year}")
 
+    # Form the list of ensemble members
+    ensemble_members_list, ensemble_members_count = form_ensemble_members_list(model_nao, models)
+
+    # Loop over the ensemble members
+    for member in ensemble_members_list:
+        # Extract the data for the year
+        model_nao_year = member.sel(time=f"{year}")
+
+        # Print the model name and the member name
+        print("Model:", member.attrs["model"])
+        print("Member:", member.attrs["variant_label"])
+
+        # Calculate the difference between the rescaled NAO index and the model NAO index
+        nao_diff = np.abs(rescaled_model_nao_year - model_nao_year)
+
+        # Extract the attributes from the member
+        member_attributes = member.attrs
+
+        # Add the attributes to the diff
+        nao_diff.attrs = member_attributes
+        
+        # Append the difference to the list
+        smallest_diff.append(nao_diff)
+
+        # Sort the list by the smallest difference
+        smallest_diff.sort()
+
+    # Select the first no_subset_members members, with the smallest differences
+    smallest_diff = smallest_diff[:no_subset_members]
+
+    # Loop over the members with the smallest differences
+    for i, member in enumerate(smallest_diff):
+        print("Smallest difference member:", i+1)
+        # print the model name and the member name
+        print("Model:", member.attrs["model"])
+        print("Member:", member.attrs["variant_label"])
+
+    return smallest_diff
+
+
+# Define a new function to form the list of ensemble members
+def form_ensemble_members_list(model_nao, models):
+    """
+    Forms a list of ensemble members, not a dictionary with model keys.
+    Each xarray object should have the associated metadata stored in attributes.
+    
+    Parameters
+    ----------
+    model_nao : dict
+        Dictionary of model data. Sorted by model.
+        Each model contains a list of ensemble members, which are xarray datasets containing the NAO index.
+    models : list
+        List of models to be plotted. Different models for each variable.
+    
+    
+    Returns
+    -------
+    ensemble_members_list : list
+        List of ensemble members, which are xarray datasets containing the NAO index.
+    """
+
+    # Initialize a list to store the ensemble members
+    ensemble_members_list = []
+
+    # Initialize a dictionary to store the number of ensemble members for each model
+    ensemble_members_count = {}
+
     # Loop over the models
     for model in models:
+        # Extract the model data
         model_nao_by_model = model_nao[model]
 
         # If the model is not in the ensemble_members_count dictionary
@@ -1224,9 +1292,13 @@ def calculate_closest_members(year, rescaled_model_nao, model_nao, models, seaso
 
         # Loop over the ensemble members
         for member in model_nao_by_model:
-            # Extract the data for the year for the model NAO index
-            model_nao_year
+            # Add the member to the ensemble_members_list
+            ensemble_members_list.append(member)
 
+            # Add one to the ensemble_members_count dictionary
+            ensemble_members_count[model] += 1
+
+    return ensemble_members_list, ensemble_members_count
 
     
 
