@@ -1332,8 +1332,11 @@ def nao_matching_other_var(rescaled_model_nao, model_nao, psl_models, match_vari
 
     # Now we want to make sure that the match_var_model_anomalies and the model_nao
     # have the same models
+    model_nao_constrained, match_var_model_anomalies_constrained \
+                                                            = constrain_models_members(model_nao, psl_models, 
+                                                                                        match_var_model_anomalies, match_var_models)
                                                                                     
-
+    # TODO: Loop over the years and perform the NAO matching
 
 # Define a function which will make sure that the model_nao and the match_var_model_anomalies
 # have the same models and members
@@ -1396,6 +1399,20 @@ def constrain_models_members(model_nao, psl_models, match_var_model_anomalies, m
                 
             # Now filter the match_var_model_anomalies data
             match_var_models_dict[model] = filter_model_data_by_variant_labels(match_var_model_anomalies_by_model, variant_labels_in_both, match_var_models_dict[model])
+
+        else:
+            print("The two variant labels lists are equal")
+            # Loop over the members in the model_nao_by_model
+            for member in model_nao_by_model:
+                # Append the member to the psl_models_dict
+                psl_models_dict[model].append(member)
+
+            # Loop over the members in the match_var_model_anomalies_by_model
+            for member in match_var_model_anomalies_by_model:
+                # Append the member to the match_var_models_dict
+                match_var_models_dict[model].append(member)
+
+    return psl_models_dict, match_var_models_dict
 
 def filter_model_data_by_variant_labels(model_data, variant_labels_in_both, model_dict):
     """
