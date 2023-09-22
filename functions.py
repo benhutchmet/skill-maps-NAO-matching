@@ -1579,6 +1579,10 @@ def main():
     Main function. For testing purposes.
     """
 
+    # Set up the variables for testing
+    models = dic.psl_full_models
+    output_dir = dic.plots_dir_canari
+
     # Extract the command line arguments
     parser = argparse.ArgumentParser()
     parser.add_argument('model', type=str, help='Model name')
@@ -1590,7 +1594,6 @@ def main():
     parser.add_argument('end_year', type=str, help='End year')
     parser.add_argument('observations_path', type=str, help='Path to the observations')
     parser.add_argument('level', type=str, help='Level name, if applicable')
-
 
     # Extract the arguments
     args = parser.parse_args()
@@ -1604,8 +1607,23 @@ def main():
                             args.season, args.observations_path, args.start_year,
                                 args.end_year, level=args.level)
     
-    # Test the loading of the model cube
-    anom_mm = load_model_cube(args.variable, args.region, args.season, args.forecast_range)
+    # Load and process the model data
+    datasets = load_data(dic.base_dir_skm_pro, models, args.variable, args.region,
+                            args.forecast_range, args.season)
+
+    # Process the model data
+    model_anomaly, _ = process_data(datasets, args.variable)
+
+    # Make sure that the model and obs have the same time period
+    model_anomaly = constrain_years(model_anomaly, models)
+
+    # Remove years containing nans from the observations and align the time periods
+    # for the observations and model
+    obs_anomaly, model_anomaly = remove_years_with_nans(obs_anomaly, model_anomaly, models)
+
+    # Calculate the NAO index
+    obs_nao, model_nao = calculate_nao_index_and_plot(obs_anomaly, model_anomaly, models, args.variable, args.season,
+                                                            args.forecast_range, output_dir, plot_graphics=False)
 
 
 if __name__ == '__main__':
