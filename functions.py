@@ -903,7 +903,7 @@ def calculate_nao_index_and_plot(obs_anomaly, model_anomaly, models, variable, s
     # If the plot_graphics flag is set to True
     if plot_graphics:
         # First calculate the ensemble mean NAO index
-        ensemble_mean_nao, _ = calculate_ensemble_mean_nao_index(model_nao, models)
+        ensemble_mean_nao, _ = calculate_ensemble_mean(model_nao, models)
 
         # Calculate the correlation coefficients between the observed and model data
         r, p, _, _, _, _ = calculate_nao_correlations(obs_nao, ensemble_mean_nao, variable)
@@ -949,7 +949,7 @@ def rescale_nao(obs_nao, model_nao, models, season, forecast_range, output_dir, 
     """
 
     # First calculate the ensemble mean NAO index
-    ensemble_mean_nao, ensemble_members_nao = calculate_ensemble_mean_nao_index(model_nao, models)
+    ensemble_mean_nao, ensemble_members_nao = calculate_ensemble_mean(model_nao, models)
 
     # Extract the years from the ensemble members
     model_years = ensemble_mean_nao.time.dt.year.values
@@ -1365,7 +1365,70 @@ def nao_matching_other_var(rescaled_model_nao, model_nao, psl_models, match_vari
         # for the matched variable
         matched_var_members = extract_matched_var_members(match_var_model_anomalies_constrained, smallest_diff)
         
+        matched_var_members_array = np.empty((len(matched_var_members)))
+
         # Now we want to calculate the ensemble mean for the matched variable for this year
+        for i, member in enumerate(matched_var_members):
+            # Extract the data for the year
+            match_var_member_year = member.sel(time=f"{year}")
+
+            # Append the data to the array
+            matched_var_members_array[i] = match_var_member_year
+
+        # Calculate the ensemble mean for the matched variable for this year
+        matched_var_ensemble_mean = np.mean(matched_var_members_array, axis=0)
+
+        # Convert the matched_var_ensemble_mean to an xarray DataArray
+        coords=matched_var_members[0].coords
+        dims=matched_var_members[0].dims
+
+        # Convert the list to an xarray DataArray
+        matched_var_ensemble_mean = xr.DataArray(matched_var_ensemble_mean, coords=coords, dims=dims)
+
+
+# Function to calculate the ensemble mean for the matched variable
+def calculate_matched_var_ensemble_mean(matched_var_members, year):
+    """
+    Calculates the ensemble mean for the matched variable for a given year.
+
+    Parameters
+    ----------
+    matched_var_members : list
+        List of ensemble members for the matched variable.
+        Each ensemble member is an xarray dataset containing the matched variable.
+    year : int
+        The year for which to calculate the ensemble mean.
+
+    Returns
+    -------
+    matched_var_ensemble_mean : xarray.DataArray
+        Ensemble mean for the matched variable for the specified year.
+    """
+
+    # Create an empty NumPy array to store the matched variable data for this year
+    matched_var_members_array = np.empty((len(matched_var_members)))
+
+    # Loop over the ensemble members for the matched variable
+    for i, member in enumerate(matched_var_members):
+        
+        # Chceck that the data is for the correct year
+        if member.time.dt.year.values != year:
+            # Print a warning and exit the program
+            print("The data is not for the correct year")
+            sys.exit()
+            
+        # Append the data to the array
+        matched_var_members_array[i] = member
+
+    # Calculate the ensemble mean for the matched variable for this year
+    matched_var_ensemble_mean = np.mean(matched_var_members_array, axis=0)
+
+    # Convert the matched_var_ensemble_mean to an xarray DataArray
+    coords = matched_var_members[0].coords
+    dims = matched_var_members[0].dims
+    matched_var_ensemble_mean = xr.DataArray(matched_var_ensemble_mean, coords=coords, dims=dims)
+
+    return matched_var_ensemble_mean
 
 
 # Define a function which will extract the right model members for the matched variable
@@ -1820,7 +1883,7 @@ def calculate_ensemble_mean(model_var, models):
     ensemble_mean_var = np.mean(ensemble_members_var, axis=0)
 
     # Convert the ensemble mean NAO index to an xarray DataArray
-    ensemble_mean_var = xr.DataArray(ensemble_mean_nao, coords=member.coords, dims=member.dims)
+    ensemble_mean_var = xr.DataArray(ensemble_mean_var, coords=member.coords, dims=member.dims)
 
     return ensemble_mean_var, ensemble_members_var    
 
