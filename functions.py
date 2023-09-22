@@ -1391,16 +1391,47 @@ def constrain_models_members(model_nao, psl_models, match_var_model_anomalies, m
             # Find the variant labels that are in both the variant_labels_psl and the variant_labels_match_var
             variant_labels_in_both = np.intersect1d(variant_labels_psl, variant_labels_match_var)
 
-            # Now loop over the model_nao_by_model
-            for member in model_nao_by_model:
-                # Extract the variant label for the member
-                variant_label = member.attrs["variant_label"]
+            # Now filter the model_nao data
+            psl_models_dict[model] = filter_model_data_by_variant_labels(model_nao_by_model, variant_labels_in_both, psl_models_dict[model])
+                
+            # Now filter the match_var_model_anomalies data
+            match_var_models_dict[model] = filter_model_data_by_variant_labels(match_var_model_anomalies_by_model, variant_labels_in_both, match_var_models_dict[model])
 
-                # If the variant label is not in the variant_labels_in_both
-                if variant_label not in variant_labels_in_both:
-                    # Remove the member from the model_nao_by_model
-                    model_nao_by_model.remove(member)
+def filter_model_data_by_variant_labels(model_data, variant_labels_in_both, model_dict):
+    """
+    Filters the model data to only include ensemble members with variant labels that are in both the model NAO data
+    and the observed data.
 
+    Parameters
+    ----------
+    model_data : dict
+        Dictionary of model data. Sorted by model.
+        Each model contains a list of ensemble members, which are xarray datasets containing the NAO index.
+    variant_labels_in_both : list
+        List of variant labels that are in both the model NAO data and the observed NAO data.
+    model_dict : dict
+        Dictionary containing the model names as keys and the variant labels as values.
+        
+    Returns
+    -------
+    psl_models_dict : dict
+        Dictionary of filtered model data. Sorted by model.
+        Each model contains a list of ensemble members, which are xarray datasets containing the NAO index.
+    """
+
+    # Loop over the members in the model_data
+    for member in model_data:
+        # Extract the variant label for the member
+        variant_label = member.attrs["variant_label"]
+
+        # Only if the variant label is in the variant_labels_in_both
+        if variant_label in variant_labels_in_both:
+            # Append the member to the model_dict
+            model_dict.append(member)
+        else:
+            print("Variant label:", variant_label, "not in the variant_labels_in_both")
+
+    return model_dict
 
 
 # Define a new function to form the list of ensemble members
