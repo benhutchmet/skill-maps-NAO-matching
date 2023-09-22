@@ -1222,7 +1222,7 @@ def calculate_closest_members(year, rescaled_model_nao, model_nao, models, seaso
         model_nao_year = member.sel(time=f"{year}")
 
         # Print the model name and the member name
-        print("Model:", member.attrs["model"])
+        print("Model:", member.attrs["source_id"])
         print("Member:", member.attrs["variant_label"])
 
         # Calculate the difference between the rescaled NAO index and the model NAO index
@@ -1292,6 +1292,22 @@ def form_ensemble_members_list(model_nao, models):
 
         # Loop over the ensemble members
         for member in model_nao_by_model:
+
+            # if the type of time is not a datetime64
+            if type(member.time.values[0]) != np.datetime64:
+                # Extract the time values as a datetime64
+                member_time = member.time.astype('datetime64[ns]')
+
+                # Add the time values back to the member
+                member = member.assign_coords(time=member_time)
+
+            # If the years are not unique
+            years = member.time.dt.year.values
+
+            # Check that the years are unique
+            if len(years) != len(set(years)):
+                raise ValueError("Duplicate years in the member")
+            
             # Add the member to the ensemble_members_list
             ensemble_members_list.append(member)
 
@@ -1768,6 +1784,14 @@ def main():
     # Test the NAO rescaling function
     rescaled_nao, ensemble_mean_nao, ensemble_members_nao = rescale_nao(obs_nao, model_nao, models, args.season,
                                                                         args.forecast_range, output_dir, lagged=False)
+    
+    # Calculate the closest members
+    # test case set year
+    year = 1966
+    # Calculate the closest members
+    smallest_diff = calculate_closest_members(year, rescaled_nao, model_nao, models, args.season, args.forecast_range, 
+                                output_dir, lagged=False, no_subset_members=20)
+
 
 if __name__ == '__main__':
     main()
