@@ -1159,6 +1159,78 @@ def calculate_rps(acc_score, ensemble_members_array, obs_nao):
     return rps_score    
 
 
+# Calculate the members which have the closest NAO index to the rescaled NAO index
+def calculate_closest_members(year, rescaled_model_nao, model_nao, models, season, forecast_range, 
+                                output_dir, lagged=False, no_subset_members=20):
+    """
+    Calculates the ensemble members (within model_nao) which have the closest NAO index to the rescaled NAO index.
+
+    Parameters
+    ----------
+    year : int
+        The year for which to rescale the NAO indices.
+    rescaled_model_nao : xarray.DataArray
+        Rescaled NAO index.
+    model_nao : dict
+        Dictionary of model data. Sorted by model.
+        Each model contains a list of ensemble members, which are xarray datasets containing the NAO index.
+    models : list
+        List of models to be plotted. Different models for each variable.
+    season : str
+        Season name.
+    forecast_range : str
+        Forecast range.
+    output_dir : str
+        Path to the output directory.
+    lagged : bool, optional
+        Flag to indicate whether the ensemble is lagged or not. The default is False.
+    no_subset_members : int, optional
+        Number of ensemble members to subset. The default is 20.
+    
+    Returns
+    -------
+    closest_nao_members : dict
+        Dictionary containing the closest ensemble members for each model.
+        Each model contains a list of ensemble members, which are xarray datasets containing the NAO index.
+    """
+
+    # Print the year which is being processed
+    print(f"Calculating nearest members for year: {year}")
+
+    # Extract the years for the rescaled NAO index and the model NAO index
+    rescaled_model_nao_years = rescaled_model_nao.time.dt.year.values
+    model_nao_years = model_nao[models[0]][0].time.dt.year.values
+
+    # If the two years arrays are not equal
+    if not np.array_equal(rescaled_model_nao_years, model_nao_years):
+        # Print a warning and exit the program
+        print("The years for the rescaled NAO index and the model NAO index are not equal")
+        sys.exit()
+
+    # Set up a dictionary to store the number of ensemble members for each model
+    ensemble_members_count = {}
+
+    # Extract the data for the year for the rescaled NAO index
+    rescaled_model_nao_year = rescaled_model_nao.sel(time=f"{year}")
+
+    # Loop over the models
+    for model in models:
+        model_nao_by_model = model_nao[model]
+
+        # If the model is not in the ensemble_members_count dictionary
+        if model not in ensemble_members_count:
+            # Add the model to the ensemble_members_count dictionary
+            ensemble_members_count[model] = 0
+
+        # Loop over the ensemble members
+        for member in model_nao_by_model:
+            # Extract the data for the year for the model NAO index
+            model_nao_year
+
+
+    
+
+
 # Define a function for plotting the NAO index
 def plot_nao_index(obs_nao, ensemble_mean_nao, variable, season, forecast_range, r, p, output_dir, 
                         ensemble_members_count, experiment = "dcppA-hindcast", nao_type="default"):
