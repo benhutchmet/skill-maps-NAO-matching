@@ -968,21 +968,22 @@ def rescale_nao(obs_nao, model_nao, models, season, forecast_range, output_dir, 
         print("Converting obs_nao to a numpy array")
         obs_nao = obs_nao.values
 
-    # Create an empty list to store the rescaled NAO index
-    rescaled_model_nao = []
+    # Create an empty numpy array to store the rescaled NAO index
+    rescaled_model_nao = np.empty((len(model_years)))
 
     # Loop over the years and perform the rescaling (including cross-validation)
-    for year in model_years:
+    for i, year in enumerate(model_years):
 
         # Compute the rescaled NAO index for this year
         signal_adjusted_nao_index_year, _ = rescale_nao_by_year(year, obs_nao, ensemble_mean_nao, ensemble_members_nao, season,
                                                             forecast_range, output_dir, lagged=False, omit_no_either_side=1)
 
         # Append the rescaled NAO index to the list, along with the year
-        rescaled_model_nao.append([year, signal_adjusted_nao_index_year])
+        rescaled_model_nao[i] = signal_adjusted_nao_index_year
 
-    # Convert the list to a numpy array
-    rescaled_model_nao = np.array(rescaled_model_nao)
+    # Convert the list to an xarray DataArray
+    # With the same coordinates as the ensemble mean NAO index
+    rescaled_model_nao = xr.DataArray(rescaled_model_nao, coords=ensemble_mean_nao.coords, dims=ensemble_mean_nao.dims)
 
     # Return the rescaled model NAO index
     return rescaled_model_nao, ensemble_mean_nao, ensemble_members_nao
@@ -1057,12 +1058,12 @@ def rescale_nao_by_year(year, obs_nao, ensemble_mean_nao, ensemble_members_nao, 
         print("Removing the last year and:", omit_no_either_side, "years backward")
         # Set up the indices to use for the cross-validation
         # Remove the last year and omit_no_either_side years backward
-        cross_validation_indices = np.arange(-1, -omit_no_either_side - 1, -1)
+        cross_validation_indices = np.arange(-1, -omit_no_either_side - 2, -1)
     # In the case of any other year
     else:
         # Omit the year and omit_no_either_side years forward and backward
         print("Cross-validation case for any other year")
-        print("Removing the year and:", omit_no_either_side, "years forward and backward")
+        print("Removing the year and:", omit_no_either_side, "years backward")
         # Set up the indices to use for the cross-validation
         # Use the year index and omit_no_either_side years forward and backward
         cross_validation_indices = np.arange(year_index - omit_no_either_side, year_index + omit_no_either_side + 1)
