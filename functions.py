@@ -1434,6 +1434,14 @@ def nao_matching_other_var(rescaled_model_nao, model_nao, psl_models, match_vari
 
     # Set up an array to fill the matched variable ensemble mean
     matched_var_ensemble_mean_array = np.empty((len(years), len(lats), len(lons)))
+
+    # Extract the coords for the first years=years of the match_var_model_anomalies_constrained
+    # Select the years from the match_var_model_anomalies_constrained
+    # Select only the data for the years in the 'years' array
+    match_var_model_anomalies_constrained_years = match_var_model_anomalies_constrained[match_var_models[0]][0].sel(time=match_var_model_anomalies_constrained[match_var_models[0]][0].time.dt.year.isin(years))
+    # Extract the coords for the first years=years of the model_nao_constrained
+    coords = match_var_model_anomalies_constrained_years.coords
+    dims = match_var_model_anomalies_constrained_years.dims
                                                                                     
     # TODO: Loop over the years and perform the NAO matching
     for i, year in enumerate(years):
@@ -1458,8 +1466,6 @@ def nao_matching_other_var(rescaled_model_nao, model_nao, psl_models, match_vari
         matched_var_ensemble_mean_array[i] = matched_var_ensemble_mean
 
     # Convert the matched_var_ensemble_mean_array to an xarray DataArray
-    coords = matched_var_members[0].coords
-    dims = matched_var_members[0].dims
     matched_var_ensemble_mean = xr.DataArray(matched_var_ensemble_mean_array, coords=coords, dims=dims)
 
     # Return the matched_var_ensemble_mean
