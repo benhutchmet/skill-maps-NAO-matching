@@ -1447,7 +1447,7 @@ def nao_matching_other_var(rescaled_model_nao, model_nao, psl_models, match_vari
 
         # Using the closest NAO index members, extract the same members
         # for the matched variable
-        matched_var_members = extract_matched_var_members(match_var_model_anomalies_constrained, smallest_diff)
+        matched_var_members = extract_matched_var_members(year, match_var_model_anomalies_constrained, smallest_diff)
         
         matched_var_members_array = np.empty((len(matched_var_members)))
 
@@ -1485,23 +1485,30 @@ def calculate_matched_var_ensemble_mean(matched_var_members, year):
         Ensemble mean for the matched variable for the specified year.
     """
 
-    # Create an empty NumPy array to store the matched variable data for this year
-    matched_var_members_array = np.empty((len(matched_var_members)))
+    # Create an empty list to store the matched variable members
+    matched_var_members_list = []
 
     # Loop over the ensemble members for the matched variable
     for i, member in enumerate(matched_var_members):
         
         # Chceck that the data is for the correct year
         if member.time.dt.year.values != year:
+            print("member time", member.time.dt.year.values)
+            print("year", year)
             # Print a warning and exit the program
             print("The data is not for the correct year")
             sys.exit()
 
-        # Append the data to the array
-        matched_var_members_array[i] = member
 
-    # Calculate the ensemble mean for the matched variable for this year
-    matched_var_ensemble_mean = np.mean(matched_var_members_array, axis=0)
+
+        # Append the member to the list
+        matched_var_members_list.append(member)
+
+    # Concatenate the matched_var_members_list
+    matched_var_members = xr.concat(matched_var_members_list, dim="member", coords="minimal")
+
+    # Calculate the ensemble mean for the matched variable
+    matched_var_ensemble_mean = matched_var_members.mean(dim="member")
 
     # Convert the matched_var_ensemble_mean to an xarray DataArray
     coords = matched_var_members[0].coords
@@ -1512,7 +1519,7 @@ def calculate_matched_var_ensemble_mean(matched_var_members, year):
 
 
 # Define a function which will extract the right model members for the matched variable
-def extract_matched_var_members(match_var_model_anomalies_constrained, smallest_diff):
+def extract_matched_var_members(year, match_var_model_anomalies_constrained, smallest_diff):
     """
     Extracts the right model members for the matched variable.
     These members have the correct magnitude of the NAO index.
@@ -1565,6 +1572,10 @@ def extract_matched_var_members(match_var_model_anomalies_constrained, smallest_
             if (member.attrs["source_id"], member.attrs["variant_label"]) in model_variant_pairs:
                 print("Appending member:", member.attrs["variant_label"]
                         , "from model:", member.attrs["source_id"])
+                
+                # Select the data for the year
+                member = member.sel(time=f"{year}")
+
                 # Append the member to the matched_var_members
                 matched_var_members.append(member)
 
@@ -1643,6 +1654,14 @@ def constrain_models_members(model_nao, psl_models, match_var_model_anomalies, m
 
             # Loop over the members in the match_var_model_anomalies_by_model
             for member in match_var_model_anomalies_by_model:
+                # if the type of the member is not datetime64
+                if type(member.time.values[0]) != np.datetime64:
+                    # Extract the time values as a datetime64
+                    member_time = member.time.astype('datetime64[ns]')
+
+                    # Add the time values back to the member
+                    member = member.assign_coords(time=member_time)
+
                 # Append the member to the match_var_models_dict
                 match_var_models_dict[model].append(member)
 
