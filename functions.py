@@ -734,9 +734,9 @@ def remove_years_with_nans(observed_data, model_data, models, NAO_matched=False)
             data = model_data.sel(time=f"{year}")
 
             # If there are any NaN values in the data
-            if np.isnan(data.values).any():
+            if np.isnan(data['__xarray_dataarray_variable__'].values).any():
                 # If there are only NaN values in the data
-                if np.isnan(data.values).all():
+                if np.isnan(data['__xarray_dataarray_variable__'].values).all():
                     # Select the year from the observed data
                     model_data = model_data.sel(time=model_data.time.dt.year != year)
 
@@ -2582,6 +2582,8 @@ def calculate_spatial_correlations(observed_data, model_data, models, variable, 
         # Extract the years
         years = ensemble_mean.time.dt.year.values
 
+        ensemble_members_count = None
+
 
     # Debug the model data
     # #print("ensemble mean within spatial correlation function:", ensemble_mean)
@@ -2629,7 +2631,7 @@ def calculate_spatial_correlations(observed_data, model_data, models, variable, 
     # variable extracted already
     # Convert both the observed and model data to numpy arrays
     observed_data_array = observed_data.values
-    ensemble_mean_array = ensemble_mean.values
+    ensemble_mean_array = ensemble_mean['__xarray_dataarray_variable__'].values
 
     # #print the values and shapes of the observed and model data
     # print("observed data shape", np.shape(observed_data_array))
@@ -2658,7 +2660,7 @@ def calculate_spatial_correlations(observed_data, model_data, models, variable, 
 # plot the correlations and p-values
 def plot_correlations(models, rfield, pfield, obs, variable, region, season, forecast_range, plots_dir, 
                         obs_lons_converted, lons_converted, azores_grid, iceland_grid, uk_n_box, 
-                            uk_s_box, ensemble_members_count = None, p_sig = 0.05):
+                            uk_s_box, ensemble_members_count = None, p_sig = 0.05, NAO_matched=False):
     """Plot the correlation coefficients and p-values.
     
     This function plots the correlation coefficients and p-values
@@ -2816,13 +2818,24 @@ def plot_correlations(models, rfield, pfield, obs, variable, region, season, for
     # Extract the number of ensemble members from the ensemble_members_count dictionary
     # if the ensemble_members_count is not None
     if ensemble_members_count is not None:
-        total_no_members = sum(ensemble_members_count.values())
+        if NAO_matched == False:
+            total_no_members = sum(ensemble_members_count.values())
+        else:
+            total_no_members = ensemble_members_count
 
-    # Add title
-    plt.title(f"{models} {variable} {region} {season} {forecast_range} Correlation Coefficients, p < {p_sig} ({sig_threshold}%), N = {total_no_members}")
+    if NAO_matched == False:
+        # Add title
+        plt.title(f"{models} {variable} {region} {season} {forecast_range} Correlation Coefficients, p < {p_sig} ({sig_threshold}%), N = {total_no_members}")
+    else:
+        # Add title
+        plt.title(f"{models} {variable} {region} {season} {forecast_range} Correlation Coefficients, p < {p_sig} ({sig_threshold}%), N = {total_no_members}, NAO matched")
 
     # set up the path for saving the figure
-    fig_name = f"{models}_{variable}_{region}_{season}_{forecast_range}_N_{total_no_members}_p_sig-{p_sig}_correlation_coefficients_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
+    if NAO_matched == False:
+        fig_name = f"{models}_{variable}_{region}_{season}_{forecast_range}_N_{total_no_members}_p_sig-{p_sig}_correlation_coefficients_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
+    else:
+        fig_name = f"{models}_{variable}_{region}_{season}_{forecast_range}_N_{total_no_members}_p_sig-{p_sig}_correlation_coefficients_NAO_matched_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
+    
     fig_path = os.path.join(plots_dir, fig_name)
 
     # Save the figure
