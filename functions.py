@@ -1340,7 +1340,7 @@ def calculate_closest_members(year, rescaled_model_nao, model_nao, models, seaso
 # Write a function which performs the NAO matching
 def nao_matching_other_var(rescaled_model_nao, model_nao, psl_models, match_variable, match_var_base_dir,
                             match_var_models, match_var_obs_path, region, season, forecast_range, 
-                                start_year, end_year, output_dir, lagged=False, 
+                                start_year, end_year, output_dir, save_dir, lagged=False, 
                                     no_subset_members=20, level = None):
     """
     Performs the NAO matching for the given variable. E.g. T2M.
@@ -1372,6 +1372,8 @@ def nao_matching_other_var(rescaled_model_nao, model_nao, psl_models, match_vari
         End year.
     output_dir : str
         Path to the output directory.
+    save_dir : str`
+        Path to the save directory.
     lagged : bool, optional
         Flag to indicate whether the ensemble is lagged or not. The default is False.
     no_subset_members : int, optional
@@ -1384,96 +1386,120 @@ def nao_matching_other_var(rescaled_model_nao, model_nao, psl_models, match_vari
     None
     """
 
-    # Print the variable which is being matched
-    print(f"Performing NAO matching for {match_variable}")
+    # Set up the folder to save the data
+    save_dir = f"{save_dir}/{match_variable}/{region}/{season}/{forecast_range}/{start_year}-{end_year}"
+    # If the folder does not exist
+    if not os.path.exists(save_dir):
+        # Create the folder
+        os.makedirs(save_dir)
 
-    # Extract the obs data for the matched variable
-    match_var_obs_anomalies = read_obs(match_variable, region, forecast_range,
-                                        season, match_var_obs_path, start_year, end_year, level=level)
-    
-    # Extract the model data for the matched variable
-    match_var_datasets = load_data(match_var_base_dir, match_var_models, match_variable, 
-                                    region, forecast_range, season, level=level)
-    
-    # process the model data
-    match_var_model_anomalies, _ = process_data(match_var_datasets, match_variable)
+    # Set up the filename
+    filename = f"{match_variable}_{region}_{season}_{forecast_range}_{start_year}-{end_year}_matched_var_ensemble_mean.nc"
 
-    # Make sure that each of the models have the same time period
-    match_var_model_anomalies = constrain_years(match_var_model_anomalies, match_var_models)
+    # Set up the path to save the data
+    save_path = f"{save_dir}/{filename}"
 
-    # Remove years containing NaN values from the obs and model data
-    # and align the time periods
-    match_var_obs_anomalies, match_var_model_anomalies = remove_years_with_nans(match_var_obs_anomalies,
-                                                                                    match_var_model_anomalies,
-                                                                                        match_var_models)
+    # If the file already exists
+    if os.path.exists(save_path):
+        # Print a notification
+        print(f"The file {filename} already exists")
+        print("Loading the file")
+        # Load the file
+        matched_var_ensemble_mean = xr.open_dataset(save_path)
+    else:
+        # Print the variable which is being matched
+        print(f"Performing NAO matching for {match_variable}")
 
-    # Now we want to make sure that the match_var_model_anomalies and the model_nao
-    # have the same models
-    model_nao_constrained, match_var_model_anomalies_constrained, \
-    models_in_both = constrain_models_members(model_nao, psl_models, 
-                                                match_var_model_anomalies, match_var_models)
-    
-    # Make sure that the years for rescaled_model_nao and model_nao 
-    # and match_var_model_anomalies_constrained are the same
-    rescaled_model_years = rescaled_model_nao.time.dt.year.values
-    model_nao_years = model_nao_constrained[psl_models[0]][0].time.dt.year.values
-    match_var_model_years = match_var_model_anomalies_constrained[match_var_models[0]][0].time.dt.year.values
-
-    # If the years are not equal
-    if not np.array_equal(rescaled_model_years, model_nao_years) or not np.array_equal(rescaled_model_years, match_var_model_years):
-        # Print a warning and exit the program
-        print("The years for the rescaled model NAO, the model NAO and the matched variable model anomalies are not equal")
+        # Extract the obs data for the matched variable
+        match_var_obs_anomalies = read_obs(match_variable, region, forecast_range,
+                                            season, match_var_obs_path, start_year, end_year, level=level)
         
-        # Extract the years which are in the rescaled model nao and the model nao
-        # Constrain the rescaled NAO and the model NAO constrained to the same years as match var model years
-        model_nao_constrained, match_var_model_anomalies_constrained, years_in_both \
-                            = constrain_years_psl_match_var(model_nao_constrained, model_nao_years, models_in_both,
-                                                                match_var_model_anomalies_constrained, match_var_model_years, models_in_both)
-        # Set rescalled_model_nao to the years_in_both
-        rescaled_model_years = years_in_both
-
-    # Set up the years to loop over
-    years = rescaled_model_years
-
-    # Set up the lats and lons for the array
-    lats = match_var_model_anomalies_constrained[match_var_models[0]][0].lat.values
-    lons = match_var_model_anomalies_constrained[match_var_models[0]][0].lon.values
-
-    # Set up an array to fill the matched variable ensemble mean
-    matched_var_ensemble_mean_array = np.empty((len(years), len(lats), len(lons)))
-
-    # Extract the coords for the first years=years of the match_var_model_anomalies_constrained
-    # Select the years from the match_var_model_anomalies_constrained
-    # Select only the data for the years in the 'years' array
-    match_var_model_anomalies_constrained_years = match_var_model_anomalies_constrained[match_var_models[0]][0].sel(time=match_var_model_anomalies_constrained[match_var_models[0]][0].time.dt.year.isin(years))
-    # Extract the coords for the first years=years of the model_nao_constrained
-    coords = match_var_model_anomalies_constrained_years.coords
-    dims = match_var_model_anomalies_constrained_years.dims
-                                                                                    
-    # TODO: Loop over the years and perform the NAO matching
-    for i, year in enumerate(years):
-        print("Selecting members for year: ", year)
-
-        # Extract the members with the closest NAO index to the rescaled NAO index
-        # for the given year
-        smallest_diff = calculate_closest_members(year, rescaled_model_nao, model_nao_constrained, models_in_both, 
-                                                    season, forecast_range, output_dir, lagged=lagged,
-                                                        no_subset_members=no_subset_members)  
-
-        # Using the closest NAO index members, extract the same members
-        # for the matched variable
-        matched_var_members = extract_matched_var_members(year, match_var_model_anomalies_constrained, smallest_diff)
+        # Extract the model data for the matched variable
+        match_var_datasets = load_data(match_var_base_dir, match_var_models, match_variable, 
+                                        region, forecast_range, season, level=level)
         
-        matched_var_members_array = np.empty((len(matched_var_members)))
+        # process the model data
+        match_var_model_anomalies, _ = process_data(match_var_datasets, match_variable)
 
-        # Now we want to calculate the ensemble mean for the matched variable for this year
-        matched_var_ensemble_mean = calculate_matched_var_ensemble_mean(matched_var_members, year)
+        # Make sure that each of the models have the same time period
+        match_var_model_anomalies = constrain_years(match_var_model_anomalies, match_var_models)
 
-        # Append the matched_var_ensemble_mean to the array
-        matched_var_ensemble_mean_array[i] = matched_var_ensemble_mean
+        # Remove years containing NaN values from the obs and model data
+        # and align the time periods
+        match_var_obs_anomalies, match_var_model_anomalies = remove_years_with_nans(match_var_obs_anomalies,
+                                                                                        match_var_model_anomalies,
+                                                                                            match_var_models)
 
-    # Convert the matched_var_ensemble_mean_array to an xarray DataArray
-    matched_var_ensemble_mean = xr.DataArray(matched_var_ensemble_mean_array, coords=coords, dims=dims)
+        # Now we want to make sure that the match_var_model_anomalies and the model_nao
+        # have the same models
+        model_nao_constrained, match_var_model_anomalies_constrained, \
+        models_in_both = constrain_models_members(model_nao, psl_models, 
+                                                    match_var_model_anomalies, match_var_models)
+        
+        # Make sure that the years for rescaled_model_nao and model_nao 
+        # and match_var_model_anomalies_constrained are the same
+        rescaled_model_years = rescaled_model_nao.time.dt.year.values
+        model_nao_years = model_nao_constrained[psl_models[0]][0].time.dt.year.values
+        match_var_model_years = match_var_model_anomalies_constrained[match_var_models[0]][0].time.dt.year.values
+
+        # If the years are not equal
+        if not np.array_equal(rescaled_model_years, model_nao_years) or not np.array_equal(rescaled_model_years, match_var_model_years):
+            # Print a warning and exit the program
+            print("The years for the rescaled model NAO, the model NAO and the matched variable model anomalies are not equal")
+            
+            # Extract the years which are in the rescaled model nao and the model nao
+            # Constrain the rescaled NAO and the model NAO constrained to the same years as match var model years
+            model_nao_constrained, match_var_model_anomalies_constrained, years_in_both \
+                                = constrain_years_psl_match_var(model_nao_constrained, model_nao_years, models_in_both,
+                                                                    match_var_model_anomalies_constrained, match_var_model_years, models_in_both)
+            # Set rescalled_model_nao to the years_in_both
+            rescaled_model_years = years_in_both
+
+        # Set up the years to loop over
+        years = rescaled_model_years
+
+        # Set up the lats and lons for the array
+        lats = match_var_model_anomalies_constrained[match_var_models[0]][0].lat.values
+        lons = match_var_model_anomalies_constrained[match_var_models[0]][0].lon.values
+
+        # Set up an array to fill the matched variable ensemble mean
+        matched_var_ensemble_mean_array = np.empty((len(years), len(lats), len(lons)))
+
+        # Extract the coords for the first years=years of the match_var_model_anomalies_constrained
+        # Select the years from the match_var_model_anomalies_constrained
+        # Select only the data for the years in the 'years' array
+        match_var_model_anomalies_constrained_years = match_var_model_anomalies_constrained[match_var_models[0]][0].sel(time=match_var_model_anomalies_constrained[match_var_models[0]][0].time.dt.year.isin(years))
+        # Extract the coords for the first years=years of the model_nao_constrained
+        coords = match_var_model_anomalies_constrained_years.coords
+        dims = match_var_model_anomalies_constrained_years.dims
+                                                                                        
+        # TODO: Loop over the years and perform the NAO matching
+        for i, year in enumerate(years):
+            print("Selecting members for year: ", year)
+
+            # Extract the members with the closest NAO index to the rescaled NAO index
+            # for the given year
+            smallest_diff = calculate_closest_members(year, rescaled_model_nao, model_nao_constrained, models_in_both, 
+                                                        season, forecast_range, output_dir, lagged=lagged,
+                                                            no_subset_members=no_subset_members)  
+
+            # Using the closest NAO index members, extract the same members
+            # for the matched variable
+            matched_var_members = extract_matched_var_members(year, match_var_model_anomalies_constrained, smallest_diff)
+            
+            matched_var_members_array = np.empty((len(matched_var_members)))
+
+            # Now we want to calculate the ensemble mean for the matched variable for this year
+            matched_var_ensemble_mean = calculate_matched_var_ensemble_mean(matched_var_members, year)
+
+            # Append the matched_var_ensemble_mean to the array
+            matched_var_ensemble_mean_array[i] = matched_var_ensemble_mean
+
+        # Convert the matched_var_ensemble_mean_array to an xarray DataArray
+        matched_var_ensemble_mean = xr.DataArray(matched_var_ensemble_mean_array, coords=coords, dims=dims)
+
+        # Save the data
+        matched_var_ensemble_mean.to_netcdf(save_path)
 
     # Return the matched_var_ensemble_mean
     return matched_var_ensemble_mean
@@ -2501,9 +2527,25 @@ def calculate_spatial_correlations(observed_data, model_data, models, variable):
     rfield (xarray.core.dataarray.DataArray): The spatial correlations between the observed and model data.
     pfield (xarray.core.dataarray.DataArray): The p-values for the spatial correlations between the observed and model data.
     """
-    # try:
-    # Process the model data and calculate the ensemble mean
-    ensemble_mean, lat, lon, years, ensemble_members_count = process_model_data_for_plot(model_data, models)
+    # if the type of model_data is not a dictionary
+    if type(model_data) != dict:
+        print("model_data is not a dictionary")
+        # try:
+        # Process the model data and calculate the ensemble mean
+        ensemble_mean, lat, lon, years, ensemble_members_count = process_model_data_for_plot(model_data, models)
+    else:
+        print("the type of model_data is:", type(model_data))
+
+        # Set the ensemble mean to the model_data
+        ensemble_mean = model_data
+
+        # Extract the lat and lon values
+        lat = ensemble_mean.lat.values
+        lon = ensemble_mean.lon.values
+
+        # Extract the years
+        years = ensemble_mean.time.dt.year.values
+
 
     # Debug the model data
     # #print("ensemble mean within spatial correlation function:", ensemble_mean)
