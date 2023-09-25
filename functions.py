@@ -1476,6 +1476,103 @@ def nao_matching_other_var(rescaled_model_nao, model_nao, psl_models, match_vari
     return matched_var_ensemble_mean
 
 
+# Function to constrain the years between the rescaled model nao and the matched variable
+# For NAO, the variable will always be psl
+def constrain_years_psl_match_var(model_nao_constrained, model_nao_years, psl_models, 
+                                    match_var_model_anomalies_constrained, match_var_model_years, match_var_models):
+    """
+    Ensures that the years are the same for both the matched variable and the NAO index (psl).
+    
+    Parameters
+    ----------
+    model_nao_constrained : dict
+        Dictionary of model data. Sorted by model.
+        Each model contains a list of ensemble members, which are xarray datasets containing the NAO index.
+        This is the constrained model NAO index.
+    model_nao_years : numpy.ndarray
+        Array of years for the model NAO index.
+    psl_models : list
+        List of models to be plotted for the NAO index. Different models for each variable.
+    match_var_model_anomalies_constrained : dict
+        Dictionary of model data. Sorted by model.
+        Each model contains a list of ensemble members, which are xarray datasets containing the matched variable.
+        This is the constrained matched variable.
+    match_var_model_years : numpy.ndarray
+        Array of years for the matched variable.
+    match_var_models : list
+        List of models to be plotted for the matched variable. Different models for each variable.
+        
+        Returns
+        -------
+    model_nao_constrained : dict
+        Dictionary of model data. Sorted by model.
+        Each model contains a list of ensemble members, which are xarray datasets containing the NAO index.
+        This is the constrained model NAO index.
+    match_var_model_anomalies_constrained : dict
+        Dictionary of model data. Sorted by model.
+        Each model contains a list of ensemble members, which are xarray datasets containing the matched variable.
+    """
+
+    # First identify which years are in both the model_nao_constrained and the match_var_model_anomalies_constrained
+    # find where model_nao_years and match_var_model_years are equal
+    years_in_both = np.where(model_nao_years == match_var_model_years)[0]
+    print("years in both", years_in_both)
+
+    # Initialize dictionaries to store the constrained model_nao and the constrained match_var_model_anomalies
+    model_nao_constrained_dict = {}
+    match_var_model_anomalies_constrained_dict = {}
+
+    # Loop over the models in the model_nao_constrained
+    for model in psl_models:
+        # Extract the model data for the model
+        model_nao_constrained_model = model_nao_constrained[model]
+
+        # Loop over the members in the model_nao_constrained_model
+        for member in model_nao_constrained_model:
+            # Extract the years
+            model_nao_constrained_years = member.time.dt.year.values
+
+            # if the years are not equal
+            if not np.array_equal(model_nao_constrained_years, years_in_both):
+                # Print a warning and exit the program
+                print("The years for the model_nao_constrained and the years_in_both are not equal")
+                print("Constraining the years")
+                # Constrain the years
+                member = member.sel(time=member.time.dt.year.isin(years_in_both))
+
+            # Add the member to the model_nao_constrained_dict
+            if model not in model_nao_constrained_dict:
+                model_nao_constrained_dict[model] = []
+            # Append the member to the model_nao_constrained_dict
+            model_nao_constrained_dict[model].append(member)
+
+    # Loop over the models in the match_var_model_anomalies_constrained
+    for model in match_var_models:
+        # Extract the model data for the model
+        match_var_model_anomalies_constrained_model = match_var_model_anomalies_constrained[model]
+
+        # Loop over the members in the match_var_model_anomalies_constrained_model
+        for member in match_var_model_anomalies_constrained_model:
+            # Extract the years
+            match_var_model_anomalies_constrained_years = member.time.dt.year.values
+
+            # if the years are not equal
+            if not np.array_equal(match_var_model_anomalies_constrained_years, years_in_both):
+                # Print a warning and exit the program
+                print("The years for the match_var_model_anomalies_constrained and the years_in_both are not equal")
+                print("Constraining the years")
+                # Constrain the years
+                member = member.sel(time=member.time.dt.year.isin(years_in_both))
+
+            # Add the member to the match_var_model_anomalies_constrained_dict
+            if model not in match_var_model_anomalies_constrained_dict:
+                match_var_model_anomalies_constrained_dict[model] = []
+            # Append the member to the match_var_model_anomalies_constrained_dict
+            match_var_model_anomalies_constrained_dict[model].append(member)
+
+    # Return the model_nao_constrained_dict and the match_var_model_anomalies_constrained_dict
+    return model_nao_constrained_dict, match_var_model_anomalies_constrained_dict
+
 # Function to calculate the ensemble mean for the matched variable
 def calculate_matched_var_ensemble_mean(matched_var_members, year):
     """
