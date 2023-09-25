@@ -1527,6 +1527,9 @@ def extract_matched_var_members(match_var_model_anomalies_constrained, smallest_
     # Extract only the unique models
     smallest_diff_models = np.unique(smallest_diff_models)
 
+    # print the smallest_diff_models
+    print("smallest_diff_models", smallest_diff_models)
+
     # Create a dictionary to store the models and their members contained within the smallest_diff
     smallest_diff_models_dict = {}
     # Loop over the members in the smallest_diff
@@ -1539,6 +1542,8 @@ def extract_matched_var_members(match_var_model_anomalies_constrained, smallest_
 
         # Append this pair to the dictionary
         model_variant_pair = (model_name, variant_label)
+
+        print("model_variant_pair", model_variant_pair)
 
         # Add the model and variant label pair to the dictionary
         if model_name in smallest_diff_models_dict:
@@ -1558,6 +1563,8 @@ def extract_matched_var_members(match_var_model_anomalies_constrained, smallest_
         for member in model_data:
             # Check if the model and variant label pair is in the model_variant_pairs
             if (member.attrs["source_id"], member.attrs["variant_label"]) in model_variant_pairs:
+                print("Appending member:", member.attrs["variant_label"]
+                        , "from model:", member.attrs["source_id"])
                 # Append the member to the matched_var_members
                 matched_var_members.append(member)
 
