@@ -1244,6 +1244,15 @@ def calculate_closest_members(year, rescaled_model_nao, model_nao, models, seaso
     # Sort the list of differences
     smallest_diff.sort()
 
+    # Logging the smallest difference
+    for i, member in enumerate(smallest_diff):
+        print("Smallest difference member full ensemble:", i+1)
+        # print the model name and the member name
+        print("Model:", member.attrs["source_id"])
+        print("Member:", member.attrs["variant_label"])
+        # Print the value of the difference
+        print("Difference:", member.values)
+
     # Select only the first no_subset_members members
     smallest_diff = smallest_diff[:no_subset_members]
 
@@ -1253,6 +1262,8 @@ def calculate_closest_members(year, rescaled_model_nao, model_nao, models, seaso
         # print the model name and the member name
         print("Model:", member.attrs["source_id"])
         print("Member:", member.attrs["variant_label"])
+        # Print the value of the difference
+        print("Difference:", member.values)
 
     return smallest_diff
 
