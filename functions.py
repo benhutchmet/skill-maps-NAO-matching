@@ -1423,7 +1423,11 @@ def nao_matching_other_var(rescaled_model_nao, model_nao, psl_models, match_vari
     if not np.array_equal(rescaled_model_years, model_nao_years) or not np.array_equal(rescaled_model_years, match_var_model_years):
         # Print a warning and exit the program
         print("The years for the rescaled model NAO, the model NAO and the matched variable model anomalies are not equal")
-        sys.exit()
+        
+        # Extract the years which are in the rescaled model nao and the model nao
+        # Constrain the rescaled NAO and the model NAO constrained to the same years as match var model years
+        # TODO: Constrain the years here
+
     
     # Set up the years to loop over
     years = rescaled_model_years
