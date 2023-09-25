@@ -2295,6 +2295,197 @@ def load_model_cube(variable, region, season, forecast_range):
 
     return anom_mm
 
+def calculate_correlations(observed_data, model_data, obs_lat, obs_lon):
+    """
+    Calculates the spatial correlations between the observed and model data.
+
+    Parameters:
+    observed_data (numpy.ndarray): The processed observed data.
+    model_data (numpy.ndarray): The processed model data.
+    obs_lat (numpy.ndarray): The latitude values of the observed data.
+    obs_lon (numpy.ndarray): The longitude values of the observed data.
+
+    Returns:
+    rfield (xarray.core.dataarray.DataArray): The spatial correlations between the observed and model data.
+    pfield (xarray.core.dataarray.DataArray): The p-values for the spatial correlations between the observed and model data.
+    """
+    try:
+        # Initialize empty arrays for the spatial correlations and p-values
+        rfield = np.empty([len(obs_lat), len(obs_lon)])
+        pfield = np.empty([len(obs_lat), len(obs_lon)])
+
+        # #print the dimensions of the observed and model data
+        print("observed data shape", np.shape(observed_data))
+        print("model data shape", np.shape(model_data))
+
+        # Loop over the latitudes and longitudes
+        for y in range(len(obs_lat)):
+            for x in range(len(obs_lon)):
+                # set up the obs and model data
+                obs = observed_data[:, y, x]
+                mod = model_data[:, y, x]
+
+                # # Print the obs and model data
+                # print("observed data", obs)
+                # print("model data", mod)
+
+                # If all of the values in the obs and model data are NaN
+                if np.isnan(obs).all() or np.isnan(mod).all():
+                    # #print a warning
+                    # print("Warning: All NaN values detected in the data.")
+                    # print("Skipping this grid point.")
+                    # print("")
+
+                    # Set the correlation coefficient and p-value to NaN
+                    rfield[y, x], pfield[y, x] = np.nan, np.nan
+
+                    # Continue to the next grid point
+                    continue
+            
+                # If there are any NaN values in the obs or model data
+                if np.isnan(obs).any() or np.isnan(mod).any():
+                    # #print a warning
+                    print("Warning: NaN values detected in the data.")
+                    print("Setting rfield and pfield to NaN.")
+
+                    # Set the correlation coefficient and p-value to NaN
+                    rfield[y, x], pfield[y, x] = np.nan, np.nan
+
+                    # Continue to the next grid point
+                    continue
+
+                # Calculate the correlation coefficient and p-value
+                r, p = stats.pearsonr(obs, mod)
+
+                # #print the correlation coefficient and p-value
+                # #print("correlation coefficient", r)
+                # #print("p-value", p)
+
+                # If the correlation coefficient is negative, set the p-value to NaN
+                # if r < 0:
+                    # p = np.nan
+
+                # Append the correlation coefficient and p-value to the arrays
+                rfield[y, x], pfield[y, x] = r, p
+
+        # #print the range of the correlation coefficients and p-values
+        # to 3 decimal places
+        #print(f"Correlation coefficients range from {rfield.min():.3f} to {rfield.max():.3f}")
+        #print(f"P-values range from {pfield.min():.3f} to {pfield.max():.3f}")
+
+        # Return the correlation coefficients and p-values
+        return rfield, pfield
+
+    except Exception as e:
+        print(f"Error calculating correlations: {e}")
+        sys.exit()
+
+
+# Define a function which processes the model data for spatial correlations
+def process_model_data_for_plot(model_data, models):
+    """
+    Processes the model data and calculates the ensemble mean.
+
+    Parameters:
+    model_data (dict): The processed model data.
+    models (list): The list of models to be plotted.
+
+    Returns:
+    ensemble_mean (xarray.core.dataarray.DataArray): The equally weighted ensemble mean of the ensemble members.
+    """
+    # Initialize a list for the ensemble members
+    ensemble_members = []
+
+    # Initialize a dictionary to store the number of ensemble members
+    ensemble_members_count = {}
+
+    # First constrain the years to the years that are in all of the models
+    model_data = constrain_years(model_data, models)
+
+    # Loop over the models
+    for model in models:
+        # Extract the model data
+        model_data_combined = model_data[model]
+
+        # #print
+        #print("extracting data for model:", model)
+
+        # Set the ensemble members count to zero
+        # if the model is not in the ensemble members count dictionary
+        if model not in ensemble_members_count:
+            ensemble_members_count[model] = 0
+        
+        # Loop over the ensemble members in the model data
+        for member in model_data_combined:
+                        
+            # # Modify the time dimension
+            # if type is not already datetime64
+            # then convert the time type to datetime64
+            if type(member.time.values[0]) != np.datetime64:
+                member_time = member.time.astype('datetime64[ns]')
+
+                # # Modify the time coordinate using the assign_coords() method
+                member = member.assign_coords(time=member_time)
+
+            # Extract the lat and lon values
+            lat = member.lat.values
+            lon = member.lon.values
+
+            # Extract the years
+            years = member.time.dt.year.values
+
+            # If the years index has duplicate values
+            # Then we will skip over this ensemble member
+            # and not append it to the list of ensemble members
+            if len(years) != len(set(years)):
+                print("Duplicate years in ensemble member")
+                continue
+
+            # Print the type of the calendar
+            # print(model, "calendar type:", member.time)
+            # print("calendar type:", type(member.time))
+
+            # Append the ensemble member to the list of ensemble members
+            ensemble_members.append(member)
+
+            #member_id = member.attrs['variant_label']
+
+            # Try to #print values for each member
+            # #print("trying to #print values for each member for debugging")
+            # #print("values for model:", model)
+            # #print("values for members:", member)
+            # #print("member values:", member.values)
+
+            # #print statements for debugging
+            # #print('shape of years', np.shape(years))
+            # # #print('years', years)
+            # print("len years for model", model, "and member", member, ":", len(years))
+
+            # Increment the count of ensemble members for the model
+            ensemble_members_count[model] += 1
+
+    # Convert the list of all ensemble members to a numpy array
+    ensemble_members = np.array(ensemble_members)
+
+    # #print the dimensions of the ensemble members
+    # #print("ensemble members shape", np.shape(ensemble_members))
+
+    # #print the ensemble members count
+    print("ensemble members count", ensemble_members_count)
+
+    # Take the equally weighted ensemble mean
+    ensemble_mean = ensemble_members.mean(axis=0)
+
+    # #print the dimensions of the ensemble mean
+    # #print(np.shape(ensemble_mean))
+    # #print(type(ensemble_mean))
+    # #print(ensemble_mean)
+        
+    # Convert ensemble_mean to an xarray DataArray
+    ensemble_mean = xr.DataArray(ensemble_mean, coords=member.coords, dims=member.dims)
+
+    return ensemble_mean, lat, lon, years, ensemble_members_count
+
 # Function for calculating the spatial correlations
 # Copied from the skill_maps_functions.py
 def calculate_spatial_correlations(observed_data, model_data, models, variable):
