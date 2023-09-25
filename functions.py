@@ -2295,6 +2295,291 @@ def load_model_cube(variable, region, season, forecast_range):
 
     return anom_mm
 
+# Function for calculating the spatial correlations
+# Copied from the skill_maps_functions.py
+def calculate_spatial_correlations(observed_data, model_data, models, variable):
+    """
+    Ensures that the observed and model data have the same dimensions, format and shape. Before calculating the spatial correlations between the two datasets.
+    
+    Parameters:
+    observed_data (xarray.core.dataset.Dataset): The processed observed data.
+    model_data (dict): The processed model data.
+    models (list): The list of models to be plotted.
+
+    Returns:
+    rfield (xarray.core.dataarray.DataArray): The spatial correlations between the observed and model data.
+    pfield (xarray.core.dataarray.DataArray): The p-values for the spatial correlations between the observed and model data.
+    """
+    # try:
+    # Process the model data and calculate the ensemble mean
+    ensemble_mean, lat, lon, years, ensemble_members_count = process_model_data_for_plot(model_data, models)
+
+    # Debug the model data
+    # #print("ensemble mean within spatial correlation function:", ensemble_mean)
+    print("shape of ensemble mean within spatial correlation function:", np.shape(ensemble_mean))
+    
+    # Extract the lat and lon values
+    obs_lat = observed_data.lat.values
+    obs_lon = observed_data.lon.values
+    # And the years
+    obs_years = observed_data.time.dt.year.values
+
+    # Initialize lists for the converted lons
+    obs_lons_converted, lons_converted = [], []
+
+    # Transform the obs lons
+    obs_lons_converted = np.where(obs_lon > 180, obs_lon - 360, obs_lon)
+    # add 180 to the obs_lons_converted
+    obs_lons_converted = obs_lons_converted + 180
+
+    # For the model lons
+    lons_converted = np.where(lon > 180, lon - 360, lon)
+    # # add 180 to the lons_converted
+    lons_converted = lons_converted + 180
+
+    # #print the observed and model years
+    # print('observed years', obs_years)
+    # print('model years', years)
+    
+    # Find the years that are in both the observed and model data
+    years_in_both = np.intersect1d(obs_years, years)
+
+    # print('years in both', years_in_both)
+
+    # Select only the years that are in both the observed and model data
+    observed_data = observed_data.sel(time=observed_data.time.dt.year.isin(years_in_both))
+    ensemble_mean = ensemble_mean.sel(time=ensemble_mean.time.dt.year.isin(years_in_both))
+
+    # Remove years with NaNs
+    observed_data, ensemble_mean, _, _ = remove_years_with_nans(observed_data, ensemble_mean, variable)
+
+    # #print the ensemble mean values
+    # #print("ensemble mean value after removing nans:", ensemble_mean.values)
+
+    # # set the obs_var_name
+    # obs_var_name = variable
+    
+    # # choose the variable name for the observed data
+    # # Translate the variable name to the name used in the obs dataset
+    # if obs_var_name == "psl":
+    #     obs_var_name = "msl"
+    # elif obs_var_name == "tas":
+    #     obs_var_name = "t2m"
+    # elif obs_var_name == "sfcWind":
+    #     obs_var_name = "si10"
+    # elif obs_var_name == "rsds":
+    #     obs_var_name = "ssrd"
+    # elif obs_var_name == "tos":
+    #     obs_var_name = "sst"
+    # else:
+    #     #print("Invalid variable name")
+    #     sys.exit()
+
+    # variable extracted already
+    # Convert both the observed and model data to numpy arrays
+    observed_data_array = observed_data.values
+    ensemble_mean_array = ensemble_mean.values
+
+    # #print the values and shapes of the observed and model data
+    print("observed data shape", np.shape(observed_data_array))
+    print("model data shape", np.shape(ensemble_mean_array))
+    # print("observed data", observed_data_array)
+    # print("model data", ensemble_mean_array)
+
+    # Check that the observed data and ensemble mean have the same shape
+    if observed_data_array.shape != ensemble_mean_array.shape:
+        print("Observed data and ensemble mean must have the same shape.")
+        print("observed data shape", np.shape(observed_data_array))
+        print("model data shape", np.shape(ensemble_mean_array))
+        print(f"variable = {variable}")
+        if variable in ["var131", "var132", "ua", "va", "Wind", "wind"]:
+            print("removing the vertical dimension")
+            # using the .squeeze() method
+            ensemble_mean_array = ensemble_mean_array.squeeze()
+            print("model data shape after removing vertical dimension", np.shape(ensemble_mean_array))
+            print("observed data shape", np.shape(observed_data_array))
+
+    # Calculate the correlations between the observed and model data
+    rfield, pfield = calculate_correlations(observed_data_array, ensemble_mean_array, obs_lat, obs_lon)
+
+    return rfield, pfield, obs_lons_converted, lons_converted, ensemble_members_count
+
+# plot the correlations and p-values
+def plot_correlations(models, rfield, pfield, obs, variable, region, season, forecast_range, plots_dir, 
+                        obs_lons_converted, lons_converted, azores_grid, iceland_grid, uk_n_box, 
+                            uk_s_box, ensemble_members_count = None, p_sig = 0.05):
+    """Plot the correlation coefficients and p-values.
+    
+    This function plots the correlation coefficients and p-values
+    for a given variable, region, season and forecast range.
+    
+    Parameters
+    ----------
+    model : str
+        Name of the models.
+    rfield : array
+        Array of correlation coefficients.
+    pfield : array
+        Array of p-values.
+    obs : str
+        Observed dataset.
+    variable : str
+        Variable.
+    region : str
+        Region.
+    season : str
+        Season.
+    forecast_range : str
+        Forecast range.
+    plots_dir : str
+        Path to the directory where the plots will be saved.
+    obs_lons_converted : array
+        Array of longitudes for the observed data.
+    lons_converted : array
+        Array of longitudes for the model data.
+    azores_grid : array
+        Array of longitudes and latitudes for the Azores region.
+    iceland_grid : array
+        Array of longitudes and latitudes for the Iceland region.
+    uk_n_box : array
+        Array of longitudes and latitudes for the northern UK index box.
+    uk_s_box : array
+        Array of longitudes and latitudes for the southern UK index box.
+    p_sig : float, optional
+        Significance level for the p-values. The default is 0.05.
+    """
+
+    # Extract the lats and lons for the azores grid
+    azores_lon1, azores_lon2 = azores_grid['lon1'], azores_grid['lon2']
+    azores_lat1, azores_lat2 = azores_grid['lat1'], azores_grid['lat2']
+
+    # Extract the lats and lons for the iceland grid
+    iceland_lon1, iceland_lon2 = iceland_grid['lon1'], iceland_grid['lon2']
+    iceland_lat1, iceland_lat2 = iceland_grid['lat1'], iceland_grid['lat2']
+
+    # Extract the lats and lons for the northern UK index box
+    uk_n_lon1, uk_n_lon2 = uk_n_box['lon1'], uk_n_box['lon2']
+    uk_n_lat1, uk_n_lat2 = uk_n_box['lat1'], uk_n_box['lat2']
+
+    # Extract the lats and lons for the southern UK index box
+    uk_s_lon1, uk_s_lon2 = uk_s_box['lon1'], uk_s_box['lon2']
+    uk_s_lat1, uk_s_lat2 = uk_s_box['lat1'], uk_s_box['lat2']
+
+    # subtract 180 from all of the azores and iceland lons
+    azores_lon1, azores_lon2 = azores_lon1 - 180, azores_lon2 - 180
+    iceland_lon1, iceland_lon2 = iceland_lon1 - 180, iceland_lon2 - 180
+
+    # subtract 180 from all of the uk lons
+    uk_n_lon1, uk_n_lon2 = uk_n_lon1 - 180, uk_n_lon2 - 180
+    uk_s_lon1, uk_s_lon2 = uk_s_lon1 - 180, uk_s_lon2 - 180
+
+    # set up the converted lons
+    # Set up the converted lons
+    lons_converted = lons_converted - 180
+
+    # Set up the lats and lons
+    # if the region is global
+    if region == 'global':
+        lats = obs.lat
+        lons = lons_converted
+    # if the region is not global
+    elif region == 'north-atlantic':
+        lats = obs.lat
+        lons = lons_converted
+    else:
+        #print("Error: region not found")
+        sys.exit()
+
+    # Set the font size for the plots
+    plt.rcParams.update({'font.size': 12})
+
+    # Set the figure size
+    plt.figure(figsize=(10, 8))
+
+    # Set the projection
+    ax = plt.axes(projection=ccrs.PlateCarree())
+
+    # Add coastlines
+    ax.coastlines()
+
+    # Add gridlines with labels for the latitude and longitude
+    # gl = ax.gridlines(crs=ccrs.PlateCarree(), draw_labels=True, linewidth=2, color='gray', alpha=0.5, linestyle='--')
+    # gl.top_labels = False
+    # gl.right_labels = False
+    # gl.xlabel_style = {'size': 12}
+    # gl.ylabel_style = {'size': 12}
+
+    # Add green lines outlining the Azores and Iceland grids
+    ax.plot([azores_lon1, azores_lon2, azores_lon2, azores_lon1, azores_lon1], [azores_lat1, azores_lat1, azores_lat2, azores_lat2, azores_lat1], color='green', linewidth=2, transform=ccrs.PlateCarree())
+    ax.plot([iceland_lon1, iceland_lon2, iceland_lon2, iceland_lon1, iceland_lon1], [iceland_lat1, iceland_lat1, iceland_lat2, iceland_lat2, iceland_lat1], color='green', linewidth=2, transform=ccrs.PlateCarree())
+
+    # # Add green lines outlining the northern and southern UK index boxes
+    ax.plot([uk_n_lon1, uk_n_lon2, uk_n_lon2, uk_n_lon1, uk_n_lon1], [uk_n_lat1, uk_n_lat1, uk_n_lat2, uk_n_lat2, uk_n_lat1], color='green', linewidth=2, transform=ccrs.PlateCarree())
+    # ax.plot([uk_s_lon1, uk_s_lon2, uk_s_lon2, uk_s_lon1, uk_s_lon1], [uk_s_lat1, uk_s_lat1, uk_s_lat2, uk_s_lat2, uk_s_lat1], color='green', linewidth=2, transform=ccrs.PlateCarree())
+
+    # Add filled contours
+    # Contour levels
+    clevs = np.arange(-1, 1.1, 0.1)
+    # Contour levels for p-values
+    clevs_p = np.arange(0, 1.1, 0.1)
+    # Plot the filled contours
+    cf = plt.contourf(lons, lats, rfield, clevs, cmap='RdBu_r', transform=ccrs.PlateCarree())
+
+    # If the variables is 'tas'
+    # then we want to invert the stippling
+    # so that stippling is plotted where there is no significant correlation
+    if variable == 'tas':
+        # replace values in pfield that are less than 0.05 with nan
+        pfield[pfield < p_sig] = np.nan
+    else:
+        # replace values in pfield that are greater than 0.05 with nan
+        pfield[pfield > p_sig] = np.nan
+
+    # #print the pfield
+    # #print("pfield mod", pfield)
+
+    # Add stippling where rfield is significantly different from zero
+    plt.contourf(lons, lats, pfield, hatches=['....'], alpha=0, transform=ccrs.PlateCarree())
+
+    # Add colorbar
+    cbar = plt.colorbar(cf, orientation='horizontal', pad=0.05, aspect=50)
+    cbar.set_label('Correlation Coefficient')
+
+    # extract the model name from the list
+    # given as ['model']
+    # we only want the model name
+    # if the length of the list is 1
+    # then the model name is the first element
+    if len(models) == 1:
+        model = models[0]
+    elif len(models) > 1:
+        models = "multi-model mean"
+    else :
+        #print("Error: model name not found")
+        sys.exit()
+
+    # Set up the significance threshold
+    # if p_sig is 0.05, then sig_threshold is 95%
+    sig_threshold = int((1 - p_sig) * 100)
+
+    # Extract the number of ensemble members from the ensemble_members_count dictionary
+    # if the ensemble_members_count is not None
+    if ensemble_members_count is not None:
+        total_no_members = sum(ensemble_members_count.values())
+
+    # Add title
+    plt.title(f"{models} {variable} {region} {season} {forecast_range} Correlation Coefficients, p < {p_sig} ({sig_threshold}%), N = {total_no_members}")
+
+    # set up the path for saving the figure
+    fig_name = f"{models}_{variable}_{region}_{season}_{forecast_range}_N_{total_no_members}_p_sig-{p_sig}_correlation_coefficients_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
+    fig_path = os.path.join(plots_dir, fig_name)
+
+    # Save the figure
+    plt.savefig(fig_path, dpi=300, bbox_inches='tight')
+
+    # Show the figure
+    plt.show()
+
 def main():
     """
     Main function. For testing purposes.
