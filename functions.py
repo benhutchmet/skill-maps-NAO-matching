@@ -1505,7 +1505,11 @@ def calculate_matched_var_ensemble_mean(matched_var_members, year):
         matched_var_members_list.append(member)
 
     # Concatenate the matched_var_members_list
-    matched_var_members = xr.concat(matched_var_members_list, dim="member", coords="minimal")
+    matched_var_members = xr.concat(matched_var_members_list, dim="member", coords="minimal", compat="override")
+
+    # for each of the members in the matched_var_members
+    # group by the year and take the mean
+    matched_var_members = matched_var_members.groupby("time.year").mean()
 
     # Calculate the ensemble mean for the matched variable
     matched_var_ensemble_mean = matched_var_members.mean(dim="member")
