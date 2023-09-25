@@ -1426,9 +1426,10 @@ def nao_matching_other_var(rescaled_model_nao, model_nao, psl_models, match_vari
         
         # Extract the years which are in the rescaled model nao and the model nao
         # Constrain the rescaled NAO and the model NAO constrained to the same years as match var model years
-        # TODO: Constrain the years here
+        model_nao_constrained, match_var_model_anomalies_constrained \
+                            = constrain_years_psl_match_var(model_nao_constrained, model_nao_years, psl_models,
+                                                                match_var_model_anomalies_constrained, match_var_model_years, match_var_models)
 
-    
     # Set up the years to loop over
     years = rescaled_model_years
 
