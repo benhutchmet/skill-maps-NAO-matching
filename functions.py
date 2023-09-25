@@ -647,7 +647,7 @@ def constrain_years(model_data, models):
     return constrained_data
 
 # checking for Nans in observed data
-def remove_years_with_nans(observed_data, model_data, models):
+def remove_years_with_nans(observed_data, model_data, models, NAO_matched=False):
     """
     Removes years from the observed data that contain NaN values.
 
@@ -661,27 +661,29 @@ def remove_years_with_nans(observed_data, model_data, models):
         xarray.Dataset: The observed data with years containing NaN values removed.
     """
 
-    # Check that there are no NaN values in the model data
-    # Loop over the models
-    for model in models:
-        # Extract the model data
-        model_data_by_model = model_data[model]
+    # If NAO_matched is False
+    if NAO_matched == False:
+        # Check that there are no NaN values in the model data
+        # Loop over the models
+        for model in models:
+            # Extract the model data
+            model_data_by_model = model_data[model]
 
-        # Loop over the ensemble members in the model data
-        for member in model_data_by_model:
-            
-            # # Modify the time dimension
-            # if type is not already datetime64
-            # then convert the time type to datetime64
-            if type(member.time.values[0]) != np.datetime64:
-                member_time = member.time.astype('datetime64[ns]')
+            # Loop over the ensemble members in the model data
+            for member in model_data_by_model:
+                
+                # # Modify the time dimension
+                # if type is not already datetime64
+                # then convert the time type to datetime64
+                if type(member.time.values[0]) != np.datetime64:
+                    member_time = member.time.astype('datetime64[ns]')
 
-                # # Modify the time coordinate using the assign_coords() method
-                member = member.assign_coords(time=member_time)
-            
-            
-            # Extract the years
-            model_years = member.time.dt.year.values
+                    # # Modify the time coordinate using the assign_coords() method
+                    member = member.assign_coords(time=member_time)
+                
+                
+                # Extract the years
+                model_years = member.time.dt.year.values
 
             # If the years has duplicate values
             if len(model_years) != len(set(model_years)):
@@ -718,6 +720,33 @@ def remove_years_with_nans(observed_data, model_data, models):
                         print(year, "all NaN values for this year")
                 else:
                     print(year, "no NaN values for this year")
+    else:
+        print("NAO_matched is True")
+        print("Checking for NaN values in the xarray dataset")
+
+        # if there are any NaN values in the xarray dataset
+        # Extract the years from the xarray dataset
+        model_years = model_data.time.dt.year.values
+
+        # Loop over the years
+        for year in model_years:
+            # Extract the data for the year
+            data = model_data.sel(time=f"{year}")
+
+            # If there are any NaN values in the data
+            if np.isnan(data.values).any():
+                # If there are only NaN values in the data
+                if np.isnan(data.values).all():
+                    # Select the year from the observed data
+                    model_data = model_data.sel(time=model_data.time.dt.year != year)
+
+                    print(year, "all NaN values for this year")
+            # if there are no NaN values in the data for a year
+            # then #print the year
+            # and "no nan for this year"
+            # and continue the script
+            else:
+                print(year, "no NaN values for this year")
 
     # Now check that there are no NaN values in the observed data
     for year in observed_data.time.dt.year.values:
@@ -760,25 +789,30 @@ def remove_years_with_nans(observed_data, model_data, models):
         # Select only those years from the model data
         observed_data = observed_data.sel(time=observed_data.time.dt.year.isin(years_in_both))
 
-        # for the model data
-        for model in models:
-            # Extract the model data
-            model_data_by_model = model_data[model]
+        # if NAO_matched is False
+        if NAO_matched == False:
+            # for the model data
+            for model in models:
+                # Extract the model data
+                model_data_by_model = model_data[model]
 
-            # Loop over the ensemble members in the model data
-            for member in model_data_by_model:
-                # Extract the years
-                model_years = member.time.dt.year.values
+                # Loop over the ensemble members in the model data
+                for member in model_data_by_model:
+                    # Extract the years
+                    model_years = member.time.dt.year.values
 
-                # Select only those years from the model data
-                member = member.sel(time=member.time.dt.year.isin(years_in_both))
+                    # Select only those years from the model data
+                    member = member.sel(time=member.time.dt.year.isin(years_in_both))
 
-                # Add the member to the constrained data dictionary
-                if model not in constrained_data:
-                    constrained_data[model] = []
+                    # Add the member to the constrained data dictionary
+                    if model not in constrained_data:
+                        constrained_data[model] = []
 
-                # Append the member to the constrained data dictionary
-                constrained_data[model].append(member)
+                    # Append the member to the constrained data dictionary
+                    constrained_data[model].append(member)
+        else:
+            # Select only those years from the model data
+            constrained_data = model_data.sel(time=model_data.time.dt.year.isin(years_in_both))
 
     return observed_data, constrained_data
 
@@ -2514,7 +2548,7 @@ def process_model_data_for_plot(model_data, models):
 
 # Function for calculating the spatial correlations
 # Copied from the skill_maps_functions.py
-def calculate_spatial_correlations(observed_data, model_data, models, variable):
+def calculate_spatial_correlations(observed_data, model_data, models, variable, NAO_matched=False):
     """
     Ensures that the observed and model data have the same dimensions, format and shape. Before calculating the spatial correlations between the two datasets.
     
@@ -2522,14 +2556,16 @@ def calculate_spatial_correlations(observed_data, model_data, models, variable):
     observed_data (xarray.core.dataset.Dataset): The processed observed data.
     model_data (dict): The processed model data.
     models (list): The list of models to be plotted.
+    variable (str): The variable name.
+    NAO_matched (bool, optional): Whether the NAO index has been matched. Defaults to False.
 
     Returns:
     rfield (xarray.core.dataarray.DataArray): The spatial correlations between the observed and model data.
     pfield (xarray.core.dataarray.DataArray): The p-values for the spatial correlations between the observed and model data.
     """
     # if the type of model_data is not a dictionary
-    if type(model_data) != dict:
-        print("model_data is not a dictionary")
+    if type(model_data) == dict:
+        print("model_data is  a dictionary")
         # try:
         # Process the model data and calculate the ensemble mean
         ensemble_mean, lat, lon, years, ensemble_members_count = process_model_data_for_plot(model_data, models)
@@ -2549,7 +2585,7 @@ def calculate_spatial_correlations(observed_data, model_data, models, variable):
 
     # Debug the model data
     # #print("ensemble mean within spatial correlation function:", ensemble_mean)
-    print("shape of ensemble mean within spatial correlation function:", np.shape(ensemble_mean))
+    # print("shape of ensemble mean within spatial correlation function:", np.shape(ensemble_mean))
     
     # Extract the lat and lon values
     obs_lat = observed_data.lat.values
@@ -2573,40 +2609,22 @@ def calculate_spatial_correlations(observed_data, model_data, models, variable):
     # #print the observed and model years
     # print('observed years', obs_years)
     # print('model years', years)
+
+    # If NAO_matched is False
+    if NAO_matched == False:
     
-    # Find the years that are in both the observed and model data
-    years_in_both = np.intersect1d(obs_years, years)
+        # Find the years that are in both the observed and model data
+        years_in_both = np.intersect1d(obs_years, years)
 
-    # print('years in both', years_in_both)
+        # print('years in both', years_in_both)
 
-    # Select only the years that are in both the observed and model data
-    observed_data = observed_data.sel(time=observed_data.time.dt.year.isin(years_in_both))
-    ensemble_mean = ensemble_mean.sel(time=ensemble_mean.time.dt.year.isin(years_in_both))
+        # Select only the years that are in both the observed and model data
+        observed_data = observed_data.sel(time=observed_data.time.dt.year.isin(years_in_both))
+        ensemble_mean = ensemble_mean.sel(time=ensemble_mean.time.dt.year.isin(years_in_both))
 
-    # Remove years with NaNs
-    observed_data, ensemble_mean, _, _ = remove_years_with_nans(observed_data, ensemble_mean, variable)
+        # Remove years with NaNs
+        observed_data, ensemble_mean, _, _ = remove_years_with_nans(observed_data, ensemble_mean, variable)
 
-    # #print the ensemble mean values
-    # #print("ensemble mean value after removing nans:", ensemble_mean.values)
-
-    # # set the obs_var_name
-    # obs_var_name = variable
-    
-    # # choose the variable name for the observed data
-    # # Translate the variable name to the name used in the obs dataset
-    # if obs_var_name == "psl":
-    #     obs_var_name = "msl"
-    # elif obs_var_name == "tas":
-    #     obs_var_name = "t2m"
-    # elif obs_var_name == "sfcWind":
-    #     obs_var_name = "si10"
-    # elif obs_var_name == "rsds":
-    #     obs_var_name = "ssrd"
-    # elif obs_var_name == "tos":
-    #     obs_var_name = "sst"
-    # else:
-    #     #print("Invalid variable name")
-    #     sys.exit()
 
     # variable extracted already
     # Convert both the observed and model data to numpy arrays
@@ -2614,8 +2632,8 @@ def calculate_spatial_correlations(observed_data, model_data, models, variable):
     ensemble_mean_array = ensemble_mean.values
 
     # #print the values and shapes of the observed and model data
-    print("observed data shape", np.shape(observed_data_array))
-    print("model data shape", np.shape(ensemble_mean_array))
+    # print("observed data shape", np.shape(observed_data_array))
+    # print("model data shape", np.shape(ensemble_mean_array))
     # print("observed data", observed_data_array)
     # print("model data", ensemble_mean_array)
 
