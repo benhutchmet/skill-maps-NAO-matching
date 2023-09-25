@@ -1209,11 +1209,11 @@ def calculate_closest_members(year, rescaled_model_nao, model_nao, models, seaso
     rescaled_model_nao_years = rescaled_model_nao.time.dt.year.values
     model_nao_years = model_nao[models[0]][0].time.dt.year.values
 
-    # If the two years arrays are not equal
-    if not np.array_equal(rescaled_model_nao_years, model_nao_years):
-        # Print a warning and exit the program
-        print("The years for the rescaled NAO index and the model NAO index are not equal")
-        sys.exit()
+    # # If the two years arrays are not equal
+    # if not np.array_equal(rescaled_model_nao_years, model_nao_years):
+    #     # Print a warning and exit the program
+    #     print("The years for the rescaled NAO index and the model NAO index are not equal")
+    #     sys.exit()
 
     # Initialize a list to store the smallest difference between the rescaled NAO index and the model NAO index
     smallest_diff = []
@@ -1426,9 +1426,11 @@ def nao_matching_other_var(rescaled_model_nao, model_nao, psl_models, match_vari
         
         # Extract the years which are in the rescaled model nao and the model nao
         # Constrain the rescaled NAO and the model NAO constrained to the same years as match var model years
-        model_nao_constrained, match_var_model_anomalies_constrained \
-                            = constrain_years_psl_match_var(model_nao_constrained, model_nao_years, psl_models,
-                                                                match_var_model_anomalies_constrained, match_var_model_years, match_var_models)
+        model_nao_constrained, match_var_model_anomalies_constrained, years_in_both \
+                            = constrain_years_psl_match_var(model_nao_constrained, model_nao_years, models_in_both,
+                                                                match_var_model_anomalies_constrained, match_var_model_years, models_in_both)
+        # Set rescalled_model_nao to the years_in_both
+        rescaled_model_years = years_in_both
 
     # Set up the years to loop over
     years = rescaled_model_years
@@ -1516,8 +1518,8 @@ def constrain_years_psl_match_var(model_nao_constrained, model_nao_years, psl_mo
 
     # First identify which years are in both the model_nao_constrained and the match_var_model_anomalies_constrained
     # find where model_nao_years and match_var_model_years are equal
-    years_in_both = np.where(model_nao_years == match_var_model_years)[0]
-    print("years in both", years_in_both)
+    years_in_both = np.intersect1d(model_nao_years, match_var_model_years)
+    print("Years in both:", years_in_both)
 
     # Initialize dictionaries to store the constrained model_nao and the constrained match_var_model_anomalies
     model_nao_constrained_dict = {}
@@ -1572,7 +1574,7 @@ def constrain_years_psl_match_var(model_nao_constrained, model_nao_years, psl_mo
             match_var_model_anomalies_constrained_dict[model].append(member)
 
     # Return the model_nao_constrained_dict and the match_var_model_anomalies_constrained_dict
-    return model_nao_constrained_dict, match_var_model_anomalies_constrained_dict
+    return model_nao_constrained_dict, match_var_model_anomalies_constrained_dict, years_in_both
 
 # Function to calculate the ensemble mean for the matched variable
 def calculate_matched_var_ensemble_mean(matched_var_members, year):
@@ -2300,9 +2302,9 @@ def main():
 
     # Set up the variables for testing
     psl_models = dic.psl_full_models
-    tas_models = dic.sfcWind_models
+    tas_models = dic.rsds_models
     output_dir = dic.plots_dir_canari
-    match_var_tas = "sfcWind"
+    match_var_tas = "rsds"
 
 
     # Extract the command line arguments
@@ -2359,7 +2361,7 @@ def main():
                                                                 lagged=False, no_subset_members=20)
     
     # print the values for year =1966
-    year=1966
+    year=1969
 
     # Print the matched_tas_ensemble_mean
     print("matched_tas_ensemble_mean for 1966", matched_tas_ensemble_mean.sel(time=f"{year}"))
