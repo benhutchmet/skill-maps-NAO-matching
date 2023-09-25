@@ -1229,8 +1229,78 @@ def calculate_closest_members(year, rescaled_model_nao, model_nao, models, seaso
         # Extract the data for the year
         model_nao_year = member.sel(time=f"{year}")
 
+        # Print the model and member name
+        print("Model:", member.attrs["source_id"])
+        print("Member:", member.attrs["variant_label"])
+
+        # print the values of the rescaled NAO index and the model NAO index
+        print("rescaled NAO index", rescaled_model_nao_year.values)
+        print("model NAO index", model_nao_year.values)
+
+        # print the types of the values of the rescaled NAO index and the model NAO index
+        print("rescaled NAO index type", type(rescaled_model_nao_year.values))
+        print("model NAO index type", type(model_nao_year.values))
+
+        # Print the dimensions of the rescaled NAO index and the model NAO index
+        print("rescaled NAO index dimensions", rescaled_model_nao_year.dims)
+        print("model NAO index dimensions", model_nao_year.dims)
+
+        # Print the coordinates of the rescaled NAO index and the model NAO index
+        print("rescaled NAO index coordinates", rescaled_model_nao_year.coords)
+        print("model NAO index coordinates", model_nao_year.coords)
+
+        # Make sure that rescaled model nao and model nao have the same dimensions
+        if rescaled_model_nao_year.dims != model_nao_year.dims:
+            AssertionError("The dimensions of rescaled model nao and model nao are not the same")
+            sys.exit()
+
+        # # If the coordinates of the rescaled NAO index and the model NAO index are not the same
+        # if rescaled_model_nao_year.coords != model_nao_year.coords:
+        #     # Print a warning and exit the program
+        #     print("The coordinates of the rescaled NAO index and the model NAO index are not the same")
+        #     print("rescaled NAO index coordinates", rescaled_model_nao_year.coords)
+        #     print("model NAO index coordinates", model_nao_year.coords)
+        #     print("reshaping coordinates")
+        #     # Extract the time coordinate from the rescaled NAO index
+        #     rescaled_model_nao_year_time = rescaled_model_nao_year.time.values
+
+        #     # Extract the time coordinate from the model NAO index
+        #     model_nao_year_time = model_nao_year.time.values
+
+        #     # Find the difference between the two time coordinates
+        #     time_diff = (rescaled_model_nao_year_time - model_nao_year_time)
+
+        #     # print the time difference
+        #     print("time difference", time_diff)
+        #     # and the type of the time difference
+        #     print("time difference type", type(time_diff))
+
+        #     # Now we want to extract the values of model_nao_year for the current time
+        #     model_nao_index_value = model_nao_year.sel(time=model_nao_year_time)
+
+        #     # And we want to assign this value to the same time as the rescaled model nao
+        #     model_nao_index = model_nao_index.assign(time=model_nao_year_time + pd.Timedelta(days=time_diff), model_nao_index = model_nao_index_value)
+
+        # print the coordinates of the rescaled NAO index and the model NAO index
+        print("rescaled NAO index coordinates", rescaled_model_nao_year.coords)
+        print("model NAO index coordinates", model_nao_year.coords)
+
+        # Calculate the annual mean for the rescaled NAO index and the model NAO index
+        rescaled_model_nao_year_ann_mean = rescaled_model_nao_year.groupby("time.year").mean()
+        model_nao_year_ann_mean = model_nao_year.groupby("time.year").mean()
+
+        # print the coordinates of the rescaled NAO index and the model NAO index
+        print("rescaled NAO index coordinates", rescaled_model_nao_year_ann_mean.coords)
+        print("model NAO index coordinates", model_nao_year_ann_mean.coords)
+
         # Calculate the difference between the rescaled NAO index and the model NAO index
-        nao_diff = np.abs(rescaled_model_nao_year - model_nao_year)
+        nao_diff = np.abs(rescaled_model_nao_year_ann_mean - model_nao_year_ann_mean)
+
+        # Print the difference
+        print("Difference:", nao_diff.values)
+
+        # Assign the coordinates of the rescaled NAO index to the difference
+        nao_diff = nao_diff.assign_coords(coords=rescaled_model_nao_year_ann_mean.coords)
 
         # Extract the attributes from the member
         member_attributes = member.attrs
