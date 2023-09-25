@@ -2198,9 +2198,9 @@ def main():
 
     # Set up the variables for testing
     psl_models = dic.psl_full_models
-    tas_models = dic.tas_models
+    tas_models = dic.sfcWind_models
     output_dir = dic.plots_dir_canari
-    match_var_tas = "tas"
+    match_var_tas = "sfcWind"
 
 
     # Extract the command line arguments
@@ -2255,6 +2255,12 @@ def main():
                                                         dic.base_dir_skm_pro, tas_models, args.observations_path, args.region, args.season,
                                                             args.forecast_range, args.start_year, args.end_year, output_dir, 
                                                                 lagged=False, no_subset_members=20)
+    
+    # print the values for year =1966
+    year=1966
+
+    # Print the matched_tas_ensemble_mean
+    print("matched_tas_ensemble_mean for 1966", matched_tas_ensemble_mean.sel(time=f"{year}"))
     
 
 if __name__ == '__main__':

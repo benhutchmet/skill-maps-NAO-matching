@@ -11,7 +11,7 @@
             "program": "${file}",
             "console": "integratedTerminal",
             "justMyCode": true,
-            "args": [ "HadGEM3-GC31-MM", "psl", "global", "DJFM", "2-9", "1960", "1980", 
+            "args": [ "HadGEM3-GC31-MM", "sfcWind", "global", "DJFM", "2-9", "1960", "1980", 
             "/home/users/benhutch/ERA5/adaptor.mars.internal-1691509121.3261805-29348-4-3a487c76-fc7b-421f-b5be-7436e2eb78d7.nc",
             "None" ]
         }

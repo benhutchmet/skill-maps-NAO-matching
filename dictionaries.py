@@ -35,6 +35,8 @@ base_dir_skm_pro = "/home/users/benhutch/skill-maps-processed-data"
 # Set up the tas models
 tas_models = ["BCC-CSM2-MR", "MPI-ESM1-2-HR", "CanESM5", "CMCC-CM2-SR5", "HadGEM3-GC31-MM", "EC-Earth3", "FGOALS-f3-L", "MIROC6", "IPSL-CM6A-LR", "CESM1-1-CAM5-CMIP5", "NorCPM1"]
 
+# Set up the sfcWind models
+sfcWind_models = ["BCC-CSM2-MR", "MPI-ESM1-2-HR", "CanESM5", "HadGEM3-GC31-MM", "FGOALS-f3-L", "MIROC6", "IPSL-CM6A-LR", "CESM1-1-CAM5-CMIP5"]
 
 # Set up the grids for the skill maps
 # Define the dimensions for the gridbox for the azores
