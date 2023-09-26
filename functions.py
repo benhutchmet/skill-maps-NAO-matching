@@ -734,9 +734,9 @@ def remove_years_with_nans(observed_data, model_data, models, NAO_matched=False)
             data = model_data.sel(time=f"{year}")
 
             # If there are any NaN values in the data
-            if np.isnan(data['__xarray_dataarray_variable__'].values).any() or np.isnan(data.values).any():
+            if np.isnan(data['__xarray_dataarray_variable__'].values).any():
                 # If there are only NaN values in the data
-                if np.isnan(data['__xarray_dataarray_variable__'].values).all() or np.isnan(data.values).all():
+                if np.isnan(data['__xarray_dataarray_variable__'].values).all():
                     # Select the year from the observed data
                     model_data = model_data.sel(time=model_data.time.dt.year != year)
 
@@ -2631,7 +2631,7 @@ def calculate_spatial_correlations(observed_data, model_data, models, variable, 
     # variable extracted already
     # Convert both the observed and model data to numpy arrays
     observed_data_array = observed_data.values
-    if variable == "tas":
+    if variable in [ "tas", "sfcWind", "rsds" ]:
         ensemble_mean_array = ensemble_mean['__xarray_dataarray_variable__'].values
     else:
         ensemble_mean_array = ensemble_mean.values
