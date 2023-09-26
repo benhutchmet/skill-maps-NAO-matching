@@ -11,7 +11,9 @@ var_name_map = {
     "rsds": "ssrd",
     "tos": "sst",
     "ua": "var131",
-    "va": "var132"
+    "va": "var132",
+    "var131": "var131",
+    "var132": "var132"
 }
 
 obs_ws_var_names = ["ua", "va", "var131", "var132"]

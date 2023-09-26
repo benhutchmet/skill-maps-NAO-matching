@@ -493,7 +493,7 @@ def load_data(base_directory, models, variable, region, forecast_range, season, 
         datasets_by_model[model] = []
         
         # If the level is not None, then we want to load the data for the specified level
-        if level is not None:
+        if level is not None and level != 85000:
             files_path = base_directory + "/" + variable + "/" + model + "/" + region + "/" + f"years_{forecast_range}" + "/" + season + "/" + f"plev_{level}" + "/" + "outputs" + "/" + "mergetime" + "/" + "*.nc"
         else:
             # create the path to the files for this model
