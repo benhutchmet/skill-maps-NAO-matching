@@ -499,6 +499,8 @@ def load_data(base_directory, models, variable, region, forecast_range, season, 
             # create the path to the files for this model
             files_path = base_directory + "/" + variable + "/" + model + "/" + region + "/" + f"years_{forecast_range}" + "/" + season + "/" + "outputs" + "/" + "mergetime" + "/" + "*.nc"
 
+        print("Searching for files in ", files_path)
+
         # #print the path to the files
         #print("Searching for files in ", files_path)
 
@@ -1372,6 +1374,7 @@ def calculate_closest_members(year, rescaled_model_nao, model_nao, models, seaso
     return smallest_diff
 
 # Write a function which performs the NAO matching
+# TODO: Modify variable names
 def nao_matching_other_var(rescaled_model_nao, model_nao, psl_models, match_variable, match_var_base_dir,
                             match_var_models, match_var_obs_path, region, season, forecast_range, 
                                 start_year, end_year, output_dir, save_dir, lagged=False, 
