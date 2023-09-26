@@ -1375,7 +1375,7 @@ def calculate_closest_members(year, rescaled_model_nao, model_nao, models, seaso
 
 # Write a function which performs the NAO matching
 # TODO: Modify variable names
-def nao_matching_other_var(rescaled_model_nao, model_nao, psl_models, match_variable, match_var_base_dir,
+def nao_matching_other_var(rescaled_model_nao, model_nao, psl_models, match_variable_model, match_variable_obs, match_var_base_dir,
                             match_var_models, match_var_obs_path, region, season, forecast_range, 
                                 start_year, end_year, output_dir, save_dir, lagged=False, 
                                     no_subset_members=20, level = None):
@@ -1391,8 +1391,10 @@ def nao_matching_other_var(rescaled_model_nao, model_nao, psl_models, match_vari
         Each model contains a list of ensemble members, which are xarray datasets containing the NAO index.
     psl_models : list
         List of models to be plotted. Different models for each variable.
-    match_variable : str
-        Variable name for the variable which will undergo matching.
+    match_variable_model : str
+        Variable name for the variable which will undergo matching for the model.
+    match_variable_obs : str
+        Variable name for the variable which will undergo matching for the obs.
     match_var_base_dir : str
         Path to the base directory containing the variable data.
     match_var_models : list
@@ -1424,14 +1426,14 @@ def nao_matching_other_var(rescaled_model_nao, model_nao, psl_models, match_vari
     """
 
     # Set up the folder to save the data
-    save_dir = f"{save_dir}/{match_variable}/{region}/{season}/{forecast_range}/{start_year}-{end_year}"
+    save_dir = f"{save_dir}/{match_variable_model}/{region}/{season}/{forecast_range}/{start_year}-{end_year}"
     # If the folder does not exist
     if not os.path.exists(save_dir):
         # Create the folder
         os.makedirs(save_dir)
 
     # Set up the filename
-    filename = f"{match_variable}_{region}_{season}_{forecast_range}_{start_year}-{end_year}_matched_var_ensemble_mean.nc"
+    filename = f"{match_variable_model}_{region}_{season}_{forecast_range}_{start_year}-{end_year}_matched_var_ensemble_mean.nc"
 
     # Set up the path to save the data
     save_path = f"{save_dir}/{filename}"
@@ -1445,18 +1447,18 @@ def nao_matching_other_var(rescaled_model_nao, model_nao, psl_models, match_vari
         matched_var_ensemble_mean = xr.open_dataset(save_path)
     else:
         # Print the variable which is being matched
-        print(f"Performing NAO matching for {match_variable}")
+        print(f"Performing NAO matching for {match_variable_model}")
 
         # Extract the obs data for the matched variable
-        match_var_obs_anomalies = read_obs(match_variable, region, forecast_range,
+        match_var_obs_anomalies = read_obs(match_variable_obs, region, forecast_range,
                                             season, match_var_obs_path, start_year, end_year, level=level)
         
         # Extract the model data for the matched variable
-        match_var_datasets = load_data(match_var_base_dir, match_var_models, match_variable, 
+        match_var_datasets = load_data(match_var_base_dir, match_var_models, match_variable_model, 
                                         region, forecast_range, season, level=level)
         
         # process the model data
-        match_var_model_anomalies, _ = process_data(match_var_datasets, match_variable)
+        match_var_model_anomalies, _ = process_data(match_var_datasets, match_variable_model)
 
         # Make sure that each of the models have the same time period
         match_var_model_anomalies = constrain_years(match_var_model_anomalies, match_var_models)
@@ -1509,8 +1511,8 @@ def nao_matching_other_var(rescaled_model_nao, model_nao, psl_models, match_vari
         # Extract the coords for the first years=years of the model_nao_constrained
         coords = match_var_model_anomalies_constrained_years.coords
         dims = match_var_model_anomalies_constrained_years.dims
-                                                                                        
-        # TODO: Loop over the years and perform the NAO matching
+
+        # Loop over the years and perform the NAO matching                                                                               
         for i, year in enumerate(years):
             print("Selecting members for year: ", year)
 
