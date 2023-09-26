@@ -1,5 +1,8 @@
 # Dictionaries
 
+# Define a dictionary to map the model names to their corresponding names in the obs dataset
+common_models = ["BCC-CSM2-MR", "MPI-ESM1-2-HR", "CanESM5", "CMCC-CM2-SR5", "HadGEM3-GC31-MM", "EC-Earth3", "FGOALS-f3-L", "MIROC6", "IPSL-CM6A-LR", "CESM1-1-CAM5-CMIP5", "NorCPM1"]
+
 # Define a dictionary to map the variable names to their corresponding names in the obs dataset
 var_name_map = {
     "psl": "msl",
