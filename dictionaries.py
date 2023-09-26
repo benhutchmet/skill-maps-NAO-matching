@@ -103,3 +103,5 @@ uk_s_box = {
 
 # plots directory canari
 plots_dir_canari = "/gws/nopw/j04/canari/users/benhutch/plots"
+
+obs_ua_va = "/gws/nopw/j04/canari/users/benhutch/ERA5/adaptor.mars.internal-1694423850.2771118-29739-1-db661393-5c44-4603-87a8-2d7abee184d8.nc"

@@ -61,7 +61,7 @@ from datetime import datetime
 
 # Import CDO
 from cdo import *
-# cdo = Cdo()
+cdo = Cdo()
 
 
 # Import the dictionaries
